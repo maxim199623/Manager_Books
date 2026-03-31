@@ -5,7 +5,7 @@ from ebooklib import epub
 from core.epub.models import Book, Chapter
 from bs4 import BeautifulSoup
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app")
 
 class EpubReader:
     """

@@ -10,7 +10,7 @@ from core.Http_Client.schemas.users import TokenResponse, UserCreate, UserRead, 
 from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate
 from core.Http_Client.schemas.chapter import ChapterCreate, ChapterRead, ChapterCount, ChapterReadCount, ChapterPatch
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app")
 
 class ApiClient:
     """

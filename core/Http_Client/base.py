@@ -1,4 +1,3 @@
-import logging
 
 import httpx
 from core.Http_Client.errors import (
