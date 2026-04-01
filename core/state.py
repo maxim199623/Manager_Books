@@ -40,6 +40,7 @@ class AppState:
     def is_authenticated(self) -> bool:
         """Проверка авторизации"""
         ic()
+        ic(self.user)
         return ic(self.user is not None)
 
     @property

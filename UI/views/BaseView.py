@@ -2,6 +2,8 @@ from typing import Iterable
 
 import flet as ft
 from abc import ABC, abstractmethod
+
+from core.Auth import AuthLogic
 from core.state import AppState, MessageLevel
 from core.users.models import UserRole
 
@@ -21,15 +23,18 @@ class BaseView(ABC):
     def __init__(self, page: ft.Page):
         self.page = page
         self.state: AppState = page.session.store.get("state")
+        self.auth_logic: AuthLogic = page.session.store.get("auth")
 
         self._snack_bar = ft.SnackBar(
             content=ft.Text(""),
         )
+        self.app_bar: ft.AppBar = ft.AppBar(bgcolor=ft.Colors.PRIMARY_CONTAINER)
+        self.drawer = ft.NavigationDrawer()
+        self._drawer_settings()
         self.page.snack_bar = self._snack_bar
 
         # подписываемся на изменения state.message
         self.state.subscribe("message", self._on_message_change)
-
 
     def _on_message_change(self):
         """Логика отображения message"""
@@ -39,6 +44,22 @@ class BaseView(ABC):
                                self.state.message_level)
             self.state.clear_message()
 
+    def _drawer_settings(self):
+        self.drawer.bgcolor = ft.Colors.PRIMARY_CONTAINER
+        self.drawer.controls += self._get_drawer_destination("Админка")
+        self.drawer.controls += self._get_drawer_destination("Список Книг")
+        self.drawer.indicator_color = ft.Colors.PRIMARY_CONTAINER
+        self.drawer.indicator_shape = ft.RoundedRectangleBorder()
+        self.drawer.selected_index = 1
+
+    @staticmethod
+    def _get_drawer_destination(label: str):
+        return [ft.Container(height=12),
+                ft.NavigationDrawerDestination(
+                    label=label,
+                    bgcolor=ft.Colors.ON_PRIMARY
+                ),
+                ft.Divider(thickness=2, color=ft.Colors.ON_PRIMARY_CONTAINER)]
 
     def build(self) -> ft.View:
         """
@@ -50,6 +71,8 @@ class BaseView(ABC):
             vertical_alignment=self.vert_alignment,
             horizontal_alignment=self.horizontal_alignment,
             controls=[self.build_content()],
+            appbar = self.app_bar,
+            drawer = self.drawer
         )
 
     @abstractmethod

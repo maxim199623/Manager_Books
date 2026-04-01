@@ -1,6 +1,5 @@
 import flet as ft
 
-from core.Auth import AuthLogic
 from UI.views.BaseView import BaseView
 
 class LoginView(BaseView):
@@ -12,10 +11,11 @@ class LoginView(BaseView):
     vert_alignment: ft.MainAxisAlignment = ft.MainAxisAlignment.CENTER
     horizontal_alignment: ft.CrossAxisAlignment = ft.CrossAxisAlignment.CENTER
 
-    def __init__(self, page: ft.Page, auth_logic: AuthLogic):
+    def __init__(self, page: ft.Page):
         super().__init__(page)
 
-        self.auth_logic = auth_logic
+        self._app_bar_settings()
+        self.drawer.visible = False
 
         # -------- controls --------
         self.email  = self._get_text_field(label="Email")
@@ -23,7 +23,9 @@ class LoginView(BaseView):
         self.login_button = self._get_button(text="Войти", func=self._on_login_click)
         self.loader = ft.ProgressRing(visible=False)
 
-
+    def _app_bar_settings(self):
+        self.app_bar.title = ft.Text("Менеджер Книг")
+        self.app_bar.center_title = True
 
     @staticmethod
     def _get_text_field(label:str, width:int = 300, password:bool = False) -> ft.TextField:
@@ -73,7 +75,6 @@ class LoginView(BaseView):
                     ],
                 )
 
-
     def build_content(self) -> ft.Control:
         """
         Возвращает View для Router.
@@ -88,10 +89,12 @@ class LoginView(BaseView):
     async def _on_login_click(self, e):
         self._set_loading(True)
         try:
-            await self.auth_logic.login(
-                self.email.value,
-                self.password.value,
-            )
+            #TODO времянка
+           # await self.auth_logic.login(
+           #     self.email.value,
+           #     self.password.value,
+           # )
+            await self.auth_logic.login("test_user@default.ru", "test_user")
         finally:
             self._set_loading(False)
 

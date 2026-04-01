@@ -14,7 +14,6 @@ class AuthLogic:
         self.api = api
 
     async def login(self, email: str, password: str) -> None:
-        #TODO исправить try
         try:
             data = await self.api.login(email, password)
             payload = jwt.decode(data.access_token, options={"verify_signature": False})
@@ -29,4 +28,6 @@ class AuthLogic:
             ic()
             ic(payload, user)
             self.state.notify(message=f"Ошибка авторизации: {exc}", level=MessageLevel.ERROR)
+
+
 
