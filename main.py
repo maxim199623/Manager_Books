@@ -18,7 +18,7 @@ def ui(page: ft.Page):
     page.title = "Book Manager"
     page.window.width = 900
     page.window.height = 700
-    page.window.min_width = 400
+    page.window.min_width = 700
     page.window.min_height = 400
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER

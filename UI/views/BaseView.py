@@ -4,6 +4,7 @@ import flet as ft
 from abc import ABC, abstractmethod
 
 from core.Auth import AuthLogic
+from core.Http_Client.client import ApiClient
 from core.state import AppState, MessageLevel
 from core.users.models import UserRole
 
@@ -24,6 +25,7 @@ class BaseView(ABC):
         self.page = page
         self.state: AppState = page.session.store.get("state")
         self.auth_logic: AuthLogic = page.session.store.get("auth")
+        self.api : ApiClient = page.session.store.get("api")
 
         self._snack_bar = ft.SnackBar(
             content=ft.Text(""),
@@ -35,6 +37,8 @@ class BaseView(ABC):
 
         # подписываемся на изменения state.message
         self.state.subscribe("message", self._on_message_change)
+
+
 
     def _on_message_change(self):
         """Логика отображения message"""

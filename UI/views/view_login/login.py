@@ -86,6 +86,7 @@ class LoginView(BaseView):
                 border_radius = 30
                 )
 
+
     async def _on_login_click(self, e):
         self._set_loading(True)
         try:
