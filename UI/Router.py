@@ -1,5 +1,6 @@
 import flet as ft
 
+from UI.views.view_admin.admin import AdminView
 from UI.views.view_books.books import BooksView
 from UI.views.view_login.login import LoginView
 from core.state import AppState, MessageLevel
@@ -18,6 +19,7 @@ class Router:
         self.routes = {
             "/login": lambda: LoginView(page),
             "/books": lambda: BooksView(page),
+            "/admin": lambda: AdminView(page),
         }
         self.page.on_route_change = self._on_route_changes
         self.page.on_view_pop = self._on_view_pop
@@ -50,7 +52,6 @@ class Router:
         if self.state.is_authenticated:
             self.state.changes_route("/books")
         else:
-            self.state.current_route = "/login"
             self.state.changes_route("/login")
 
 

@@ -27,13 +27,12 @@ class BaseView(ABC):
         self.auth_logic: AuthLogic = page.session.store.get("auth")
         self.api : ApiClient = page.session.store.get("api")
 
-        self._snack_bar = ft.SnackBar(
-            content=ft.Text(""),
-        )
+        self.modal_dialog = ft.AlertDialog(modal=False)
+
         self.app_bar: ft.AppBar = ft.AppBar(bgcolor=ft.Colors.PRIMARY_CONTAINER)
         self.drawer = ft.NavigationDrawer()
         self._drawer_settings()
-        self.page.snack_bar = self._snack_bar
+
 
         # подписываемся на изменения state.message
         self.state.subscribe("message", self._on_message_change)
@@ -55,6 +54,15 @@ class BaseView(ABC):
         self.drawer.indicator_color = ft.Colors.PRIMARY_CONTAINER
         self.drawer.indicator_shape = ft.RoundedRectangleBorder()
         self.drawer.selected_index = 1
+        self.drawer.on_change = self._change_drawer
+
+    def _change_drawer(self, e):
+        ic(e.data)
+        match e.data:
+            case 0:
+                self.state.changes_route("/admin")
+            case 1:
+                self.state.changes_route("/books")
 
     @staticmethod
     def _get_drawer_destination(label: str):
@@ -95,11 +103,10 @@ class BaseView(ABC):
         else:
             bgcolor = ft.Colors.BLUE_700
 
-        self._snack_bar.content = ft.Text(message, size=24, color=ft.Colors.ON_ERROR_CONTAINER)
-        self._snack_bar.bgcolor = bgcolor
-
+        self.modal_dialog.content =ft.Text(message, size=24, color=ft.Colors.ON_ERROR_CONTAINER)
+        self.modal_dialog.bgcolor = bgcolor
         try:
-            self.page.show_dialog(self._snack_bar)
+            self.page.show_dialog(self.modal_dialog)
         except RuntimeError as e:
             msg = e.args[0] if e.args else ""
             if not (isinstance(msg, str) and msg == "Dialog is already opened"):

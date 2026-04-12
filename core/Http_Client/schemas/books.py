@@ -20,6 +20,15 @@ class BookCreate(BaseModel):
             return None
         return b64encode(v).decode("ascii")
 
+    @field_validator("title",  mode="before")
+    @classmethod
+    def str_title(cls, title):
+        if isinstance(title, str):
+            return title
+        if isinstance(title, (list, tuple)):
+            return " / ".join(map(str, title))
+        return str(title)
+
 
 class BookRead(BaseModel):
     id: int

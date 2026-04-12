@@ -5,12 +5,17 @@ from ebooklib import epub
 from core.epub.models import Book, Chapter
 from bs4 import BeautifulSoup
 
+import tempfile
+
 logger = logging.getLogger("app")
 
 class EpubReader:
     """
     Читает EPUB и возвращает Book.
     """
+    def __init__(self):
+        self.temp_file_path = None
+
     def _load_book(self,  path: str):
         """Загружаем файл книги"""
         ic()
@@ -77,7 +82,10 @@ class EpubReader:
             chapters.append(Chapter(title=name_chapter, content=chapter_))
         return chapters
 
-    def load(self, path: str) -> Book:
+    def load(self, path: str | None = None, data:bytes = None) -> Book:
+        if path is None:
+            self._get_path(data=data)
+            path = self.temp_file_path
         read_book , file =  self._load_book(path)
         title, author, description = self._load_metadata(read_book)
         cover = self._load_cover(read_book)
@@ -88,3 +96,9 @@ class EpubReader:
                     description=description,
                     chapters=chapters,
                     file=file)
+
+    def _get_path(self, data):
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as f:
+            f.write(data)
+            self.temp_file_path = f.name
+            ic(self.temp_file_path)

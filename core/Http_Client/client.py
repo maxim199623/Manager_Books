@@ -60,10 +60,12 @@ class ApiClient:
                                    expected_status=200)
 
     async def add_book(self, book: BookCreate) -> None:
-        await self._request(method=HTTPMethod.POST,
+       resp = await self._request(method=HTTPMethod.POST,
                             url="/books/add_book",
                             json=book.model_dump(exclude_none=True),
                             expected_status=201)
+
+       return resp
 
     async def get_books(self,
                         author: Optional[str] = None,
@@ -94,10 +96,11 @@ class ApiClient:
 
 
     async def add_chapters(self, book_id: int, chapters: List[ChapterCreate]) -> None:
-        await self._request(method=HTTPMethod.POST,
+        resp = await self._request(method=HTTPMethod.POST,
                             url=f"/books/{book_id}/chapters",
                             json=[c.model_dump() for c in chapters],
                             expected_status=201)
+        return resp
 
     async def get_chapter(self, book_id: int, chapter_num: int) -> ChapterRead:
         resp = await self._request(method=HTTPMethod.GET,

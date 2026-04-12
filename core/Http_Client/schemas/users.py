@@ -19,7 +19,6 @@ class UserPatch(BaseModel):
     role: UserRole  | None = None
     password: str  | None = None
 
-
 class UserRead(BaseModel):
     id: int
     email: EmailStr
