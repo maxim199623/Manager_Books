@@ -1,6 +1,6 @@
 import flet as ft
 
-def get_text_field(*, label: str, field_name: str, width: int = 30000, password: bool = False, multiline: bool = False,
+def get_text_field(*, label: str, field_name: str = None, width: int = 30000, password: bool = False, multiline: bool = False,
                     func_field) -> ft.TextField:
 
     return ft.TextField(

@@ -49,7 +49,8 @@ class BaseView(ABC):
 
     def _drawer_settings(self):
         self.drawer.bgcolor = ft.Colors.PRIMARY_CONTAINER
-        self.drawer.controls += self._get_drawer_destination("Админка")
+        if self.state.user is not None and self.state.user.role == UserRole.ADMIN:
+            self.drawer.controls += self._get_drawer_destination("Админка")
         self.drawer.controls += self._get_drawer_destination("Список Книг")
         self.drawer.indicator_color = ft.Colors.PRIMARY_CONTAINER
         self.drawer.indicator_shape = ft.RoundedRectangleBorder()
@@ -60,7 +61,10 @@ class BaseView(ABC):
         ic(e.data)
         match e.data:
             case 0:
-                self.state.changes_route("/admin")
+                if self.state.user is not None and self.state.user.role == UserRole.ADMIN:
+                    self.state.changes_route("/admin")
+                else:
+                    self.state.changes_route("/books")
             case 1:
                 self.state.changes_route("/books")
 
@@ -69,7 +73,7 @@ class BaseView(ABC):
         return [ft.Container(height=12),
                 ft.NavigationDrawerDestination(
                     label=label,
-                    bgcolor=ft.Colors.ON_PRIMARY
+                    bgcolor=ft.Colors.ON_PRIMARY,
                 ),
                 ft.Divider(thickness=2, color=ft.Colors.ON_PRIMARY_CONTAINER)]
 

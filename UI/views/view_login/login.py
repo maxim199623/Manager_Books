@@ -17,11 +17,16 @@ class LoginView(BaseView):
         self._app_bar_settings()
         self.drawer.visible = False
 
+        self.page.on_resize = self._page_resize
+
         # -------- controls --------
         self.email  = self._get_text_field(label="Email")
         self.password = self._get_text_field(label="Password", password=True)
         self.login_button = self._get_button(text="Войти", func=self._on_login_click)
         self.loader = ft.ProgressRing(visible=False)
+
+    def _page_resize(self):
+        pass
 
     def _app_bar_settings(self):
         self.app_bar.title = ft.Text("Менеджер Книг")
@@ -96,6 +101,7 @@ class LoginView(BaseView):
            #     self.password.value,
            # )
             await self.auth_logic.login("test_user@default.ru", "test_user")
+            #await self.auth_logic.login("test_user_1@def.ru", "123")
         finally:
             self._set_loading(False)
 

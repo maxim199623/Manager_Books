@@ -3,6 +3,7 @@ import time
 from enum import Enum
 from typing import Optional, List, Callable, Literal, Dict
 
+from Http_Client.schemas.books import BookRead
 from core.config import APISetting, Settings
 from core.users.models import User, UserRole
 
@@ -14,6 +15,7 @@ class MessageLevel(str, Enum):
     WARNING = "warning"
     INFO = "info"
 
+
 class AppState:
     """
     Глобальное состояние приложения.
@@ -24,6 +26,7 @@ class AppState:
 
         self.user: Optional[User] = None
         self.current_book_id: Optional[int] = None
+        self.current_book: Optional[BookRead] = None
 
         self.settings_API: APISetting = Settings().api_config()
 
@@ -68,8 +71,9 @@ class AppState:
         self.current_book_id = None
         self._notify("user")
 
-    def select_book(self, book_id: int):
+    def select_book(self, book_id: int, book:BookRead):
         self.current_book_id = book_id
+        self.current_book = book
         logger.info(f"Открыта книга с id:{self.current_book_id}")
         self._notify("book")
 

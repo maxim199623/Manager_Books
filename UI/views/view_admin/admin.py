@@ -19,7 +19,7 @@ from state import MessageLevel
 class AdminView(BaseView):
     route = "/admin"
     requires_auth = True
-    allowed_roles = [UserRole.USER, UserRole.ADMIN]
+    allowed_roles = [UserRole.ADMIN]
     vert_alignment: ft.MainAxisAlignment = ft.MainAxisAlignment.START
     horizontal_alignment: ft.CrossAxisAlignment = ft.CrossAxisAlignment.CENTER
 

@@ -2,6 +2,7 @@ import flet as ft
 from pydantic import ValidationError
 
 from Http_Client.client import ApiClient
+from core.Http_Client.errors import ConflictError
 from core.Http_Client.schemas.users import UserRead, UserRole, UserCreate, UserPatch
 from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
@@ -72,7 +73,8 @@ class Users_Tab:
         self.table.columns.append(ft.DataColumn(label=ft.Text("created_at", size=25)))
         self.table.columns.append(ft.DataColumn(label=ft.Text("", size=25)))
 
-        self.cont.content = self.table
+        self.coll.controls.append(self.table)
+        self.cont.content = self.coll
 
     def add_row(self, user: UserRead):
         row = ft.DataRow(cells=[
@@ -155,8 +157,11 @@ class Users_Tab:
             await self.api.add_user(user)
             await self._get_rows()
         except ValidationError as exc:
-            self.state.notify(message=f"ошибка добавления пользователя: {exc}", level=MessageLevel.ERROR)
-
+            self.state.notify(message=f"Не те данные: {exc}", level=MessageLevel.ERROR)
+        except ConflictError as exc:
+            self.state.notify(message=f"Такой пользователь уже есть", level=MessageLevel.ERROR)
+        except Exception as exc:
+            self.state.notify(message=f"Ошибка добавления пользователя: {exc}", level=MessageLevel.ERROR)
 
 
     async def _get_rows(self):

@@ -1,8 +1,8 @@
 import flet as ft
 
 from UI.views.BaseView import BaseView
+from UI.views.view_books.cont_book import Book_cont
 from core.users.models import UserRole
-from UI.views.view_books.book_cont import create_cont_book
 
 class BooksView(BaseView):
 
@@ -44,7 +44,9 @@ class BooksView(BaseView):
         books = await self.api.get_books()
         for index, book in enumerate(books):
             self.loader.value = (index + 1) / len(books)
-            cont_book = create_cont_book(title=book.title, description=book.description, index=book.id, cover=book.cover)
+            cont_book = Book_cont(page=self.page).get_cont(
+                title=book.title, description=book.description, index=book.id, cover=book.cover, data = book
+            )
             if book.file is None:
                 cont_book.content.controls[2].content.controls[0].content = "Нет файла"
                 cont_book.content.controls[2].content.controls[0].disabled = True

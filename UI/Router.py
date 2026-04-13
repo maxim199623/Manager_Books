@@ -3,6 +3,7 @@ import flet as ft
 from UI.views.view_admin.admin import AdminView
 from UI.views.view_books.books import BooksView
 from UI.views.view_login.login import LoginView
+from UI.views.view_read.read import ReadView
 from core.state import AppState, MessageLevel
 
 
@@ -20,6 +21,7 @@ class Router:
             "/login": lambda: LoginView(page),
             "/books": lambda: BooksView(page),
             "/admin": lambda: AdminView(page),
+            "/read": lambda: ReadView(page)
         }
         self.page.on_route_change = self._on_route_changes
         self.page.on_view_pop = self._on_view_pop
@@ -29,6 +31,9 @@ class Router:
 
         # подписка на события state.is_authenticated
         self.state.subscribe("user", self._on_user_change)
+
+        # подписка на события state.current_book_id
+        self.state.subscribe("book", self._on_book_change)
 
     def start(self):
         """Запуск приложения"""
@@ -54,7 +59,11 @@ class Router:
         else:
             self.state.changes_route("/login")
 
-
+    def _on_book_change(self):
+        if self.state.current_book_id is not None:
+            self.state.changes_route("/read")
+        else:
+            self.state.changes_route("/books")
 
     def _on_route_changes(self, e: ft.RouteChangeEvent):
         route = e.route or "/"
