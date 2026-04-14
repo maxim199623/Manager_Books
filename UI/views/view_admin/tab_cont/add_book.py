@@ -10,7 +10,7 @@ class Add_Book_Tab:
         self._built = False
         self.name = "Добавление книг"
         self.cont = ft.Container(expand=True)
-        self.row = ft.Row(expand=True)
+        self.row = ft.ResponsiveRow(spacing=20,run_spacing=20)
         self.coll1 = ft.Column(expand=True)
         self.coll2 = ft.Column(expand=True)
         self.cover = ft.Image(src=open("UI/views/view_books/cover.png", "rb").read())
@@ -20,7 +20,6 @@ class Add_Book_Tab:
     def _setting_coll1(self, func_field, func_but):
         self.coll1.alignment = ft.MainAxisAlignment.CENTER
         self.coll1.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-        self.coll1.scroll = ft.ScrollMode.AUTO
         self.coll1.spacing = 20
 
         self.coll1.controls.append(self.loader)
@@ -38,16 +37,21 @@ class Add_Book_Tab:
     def _setting_coll2(self):
         self.coll2.alignment = ft.MainAxisAlignment.CENTER
         self.coll2.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-        self.coll2.scroll = ft.ScrollMode.AUTO
         self.coll2.controls.append(self.cover)
 
     def _setting_row(self):
-        self.row.controls.append(self.coll1)
-        self.row.controls.append(self.coll2)
+        self.row.controls.append(ft.Container(self.coll1, col={ ft.ResponsiveRowBreakpoint.XS: 12,
+                                                                ft.ResponsiveRowBreakpoint.MD: 6 }))
+        self.row.controls.append(ft.Container(self.coll2, col={ft.ResponsiveRowBreakpoint.XS: 12,
+                                                               ft.ResponsiveRowBreakpoint.MD: 6}))
+
 
     def _setting_container(self):
         self.cont.height = self.page.height * 1.00763 - 160
-        self.cont.content=self.row
+        self.cont.content = ft.Column(expand=True,
+                                      scroll=ft.ScrollMode.AUTO,
+                                      controls=[self.row])
+
 
     def change_cover(self, data:bytes):
         self.cover.src = data

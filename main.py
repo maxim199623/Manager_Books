@@ -9,19 +9,20 @@ import flet as ft
 
 from core.state import AppState
 
+import argparse
+
 logger = logging.getLogger("app")
 
-def load_fonts(page: ft.Page, fonts_dir="UI/fonts"):
+def load_fonts(page: ft.Page, fonts_dir="assets/fonts"):
     fonts = {}
 
     for file in Path(fonts_dir).glob("*.ttf"):
-        font_name = file.stem  # имя файла без .ttf
-        fonts[font_name] = str(file)
-
+        font_name = file.stem
+        fonts[font_name] = f"/fonts/{file.name}"
     page.fonts = fonts
 
-def apply_logger():
-    setup_logging(debug=True)
+def apply_logger(debug):
+    setup_logging(debug=debug)
     ic()
     logger.info("логгер запущен")
 
@@ -48,11 +49,25 @@ def ui(page: ft.Page):
     router = Router(page)
     router.start()
 
+
+def setting_parser(parser):
+     parser.add_argument("--debug", action="store_true")
+     parser.add_argument("--web", action="store_true")
+
+
+
 def main():
-    apply_logger()
-    #ft.app(target=ui, view = ft.AppView.WEB_BROWSER, port=8550) # только браузер
-    #ft.app(target=ui, view = ft.AppView.FLET_APP_WEB, port=8550) #  браузер и приложение
-    ft.run(ui, view = ft.AppView.FLET_APP) #  только приложение
+    parser = argparse.ArgumentParser(description="Менеджер Книг")
+    setting_parser(parser)
+    args = parser.parse_args()
+
+    apply_logger(debug=args.debug)
+
+    if args.web:
+        ft.app(target=ui, view = ft.AppView.WEB_BROWSER, port=8550, assets_dir="assets") # только браузер
+    else:
+        ft.run(ui, view=ft.AppView.FLET_APP, assets_dir="assets")  # только приложение
+
 
 if __name__ == "__main__":
     main()

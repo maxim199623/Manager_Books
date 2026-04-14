@@ -3,17 +3,17 @@ from pathlib import Path
 from typing import List
 import flet as ft
 
-from Http_Client.errors import UnprocessableContentError, ConflictError
-from Http_Client.schemas.books import BookCreate
-from Http_Client.schemas.chapter import ChapterCreate
+from core.Http_Client.errors import UnprocessableContentError, ConflictError
+from core.Http_Client.schemas.books import BookCreate
+from core.Http_Client.schemas.chapter import ChapterCreate
 from UI.views.BaseView import BaseView
 from UI.views.view_admin.tab_cont.Users_tab import Users_Tab
 from UI.views.view_admin.tab_cont.add_book import Add_Book_Tab
 from core.users.models import UserRole
 
 from UI.get_element.button import get_button
-from epub.reader import EpubReader
-from state import MessageLevel
+from core.epub.reader import EpubReader
+from core.state import MessageLevel
 
 
 class AdminView(BaseView):
@@ -25,6 +25,7 @@ class AdminView(BaseView):
 
     def __init__(self, page: ft.Page):
         super().__init__(page)
+        self.drawer.selected_index = 0
 
         self._container = ft.Container(
             bgcolor=ft.Colors.PRIMARY_CONTAINER,
@@ -219,3 +220,4 @@ class AdminView(BaseView):
         if isinstance(self._column.controls[-1], ft.Container):
             self._column.controls[-1].height = ic(self.page.height * 1.00763 - 160)
             self._column.controls[-1].update()
+        self.users_tab.sync_view_mode()

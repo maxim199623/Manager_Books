@@ -2,37 +2,45 @@ import base64
 
 import flet as ft
 
-from Http_Client.client import ApiClient
+from core.Http_Client.client import ApiClient
 from UI.get_element.button import get_button
-from state import AppState, MessageLevel
-from users.models import UserRole
+from core.state import AppState, MessageLevel
+from core.users.models import UserRole
 from pathlib import Path
 
 
 class Book_cont:
     def __init__(self, page):
         self.page = page
-        self.cont = ft.Container()
+        self.cont = ft.Container(expand=False)
         self.state: AppState = page.session.store.get("state")
         self.api: ApiClient = page.session.store.get("api")
         self.dialog_del = ft.AlertDialog(modal=True)
         self.loader = ft.ProgressBar(bar_height=10, border_radius=10, visible=False)
 
+        self.full_view = ft.Container(visible=True, expand=True)
+        self.min_view = ft.Container(visible=False, expand=True)
+
+        self.cont.content = ft.Stack([self.full_view, self.min_view], expand=True)
+
+        self.is_build = False
+
     def _settings_dialog_del(self, message:str , _id: int):
-        self.dialog_del.title = ft.Text("Удаление пользователя")
+        self.dialog_del.title = ft.Text("Удаление")
         self.dialog_del.content = ft.Text(message)
         self.dialog_del.actions.clear()
         self.dialog_del.actions.append(get_button(text="Да", func_but=self.dial_button, button_name={"id": _id,"button_name":"del_yes"}))
         self.dialog_del.actions.append(get_button(text="Нет", func_but=self.dial_button, button_name={"id": _id,"button_name": "del_not"}))
 
-    def _settings_cont(self, index):
+    def _settings_cont(self, index, book):
         self.cont.border = ft.border.all(2, ft.Colors.BLACK26)
         self.cont.border_radius = 10
         self.cont.margin=10
         self.cont.padding=10
         self.cont.bgcolor = ft.Colors.ON_PRIMARY
         self.cont.on_hover=self.on_hover
-        self.cont.data = index
+        self.cont.data = {"index": index,
+                          "book":book}
         self.cont.on_click = self.click_book
 
         self.cont.animate_scale = ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT)
@@ -65,7 +73,8 @@ class Book_cont:
     def _get_cont_button(self, index):
         button_coll = ft.Column()
         button_coll.controls.append(self.loader)
-        button_coll.controls.append(get_button(button_name=index, text="Скачать", func_but=self.load_button))
+        if not self.page.web:
+            button_coll.controls.append(get_button(button_name=index, text="Скачать", func_but=self.load_button))
         if self.state.user.role == UserRole.ADMIN:
             button_coll.controls.append(get_button(button_name=index, text="Удалить", func_but=self.del_button))
 
@@ -88,14 +97,32 @@ class Book_cont:
 
         return all_row
 
+    def _get_min_elements(self, cover, title, description, index):
+        if cover is None:
+            cover = open("UI/views/view_books/cover.png", "rb").read()
+        all_row = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,  tight=True,)
+        image = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.COVER)
+        des = ft.Container(alignment=ft.Alignment.BOTTOM_LEFT,padding=12)
+        des.content = ft.Column(tight=True, spacing=4, controls=[
+            ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.WHITE,overflow=ft.TextOverflow.ELLIPSIS)
+        ])
+        all_row.controls = [image, des]
+        return all_row
 
     def get_cont(self, cover=None, title="None", description="None", index=None, data=None):
-        self._settings_cont(index)
-        elemen = self._get_elements(cover, title,description,index)
-        self.cont.data = {"book":data,
-                            "index":index}
-        self.cont.content = elemen
+        self.is_build = True
+        self._settings_cont(index, data)
+        self.full_view.content = self._get_elements(cover, title, description, index)
+        self.min_view.content = self._get_min_elements(cover, title, description, index)
+        self.apply_mode()
         return self.cont
+
+    def apply_mode(self):
+        ic()
+        is_small = self.page.width <= 992
+        ic(is_small)
+        self.full_view.visible = not is_small
+        self.min_view.visible = is_small
 
 
     def on_hover(self,e):
@@ -119,7 +146,6 @@ class Book_cont:
         ic(e.control.data)
         self._settings_dialog_del(message=f"Удалить пользователя {e.control.data}", _id=e.control.data)
         self.page.show_dialog(self.dialog_del)
-        #TODO
 
     def dial_button(self, e):
         ic(e.control.data)

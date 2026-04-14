@@ -114,11 +114,23 @@ class ApiClient:
                                    expected_status=200)
         return ChapterCount(**resp)
 
-    async def get_read_chapters_in_book(self, book_id: int) -> ChapterReadCount:
+    async def get_count_read_chapters_in_book(self, book_id: int) -> ChapterReadCount:
         resp = await self._request(method=HTTPMethod.GET,
                                    url=f"/books/{book_id}/chapters/read/count",
                                    expected_status=200)
         return ChapterReadCount(**resp)
+
+    async def get_read_chapters_in_book(self, book_id: int) -> List[int]:
+        resp = await self._request(method=HTTPMethod.GET,
+                                   url=f"/books/chapters/read",
+                                   params={"book_id":book_id},
+                                   expected_status=200)
+        return resp
+
+    async def delete_history_read_chapters_in_book(self, book_id: int) -> None:
+        await self._request(method=HTTPMethod.DELETE,
+                                   url=f"/books/{book_id}/history",
+                                   expected_status=200)
 
     async def patch_chapter(self, book_id: int, chapter_num: int, chapter: ChapterPatch) -> None:
         await self._request(method=HTTPMethod.PATCH,

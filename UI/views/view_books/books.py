@@ -22,12 +22,15 @@ class BooksView(BaseView):
                 bgcolor=ft.Colors.PRIMARY_CONTAINER,
                 padding=10,
                 border_radius = 30,
-                height = self.page.height * 1.00763 - 96.193
+                height = self.page.height * 1.00763 - 96.193,
+                width = self.page.width
                 )
         self.loader = ft.ProgressBar(bar_height = 10, border_radius=10)
-        self._column = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                         scroll=ft.ScrollMode.AUTO,
-                                 controls = [self.loader])
+
+        self._column = ft.ResponsiveRow(spacing=10,
+                        run_spacing=10,
+                        controls=[self.loader])
+        self.cards = []
         self._get_books()
 
 
@@ -44,12 +47,19 @@ class BooksView(BaseView):
         books = await self.api.get_books()
         for index, book in enumerate(books):
             self.loader.value = (index + 1) / len(books)
-            cont_book = Book_cont(page=self.page).get_cont(
+            card = Book_cont(page=self.page)
+            self.cards.append(card)
+            cont_book = card.get_cont(
                 title=book.title, description=book.description, index=book.id, cover=book.cover, data = book
-            )
+                )
             if book.file is None:
                 cont_book.content.controls[2].content.controls[0].content = "Нет файла"
                 cont_book.content.controls[2].content.controls[0].disabled = True
+            cont_book.col = {ft.ResponsiveRowBreakpoint.XS: 6,
+                             ft.ResponsiveRowBreakpoint.SM: 4,
+                             ft.ResponsiveRowBreakpoint.MD: 3,
+                             ft.ResponsiveRowBreakpoint.LG: 12
+}
             self._column.controls.append(cont_book)
 
             self.page.update()
@@ -60,7 +70,11 @@ class BooksView(BaseView):
     def _page_resize(self):
         ic(self.page.width, self.page.height)  # type: ignore
         self._container.height = ic(self.page.height * 1.00763 - 96.193)
+        self._container.width = self.page.width
         self._container.update()
+        for card in self.cards:
+            card.apply_mode()
+        self.page.update()
 
 
     def build_content(self) -> ft.Control:
@@ -69,5 +83,7 @@ class BooksView(BaseView):
         """
         ic()
         cont = self._container
-        cont.content = self._column
+        cont.content = ft.Column(expand=True,
+                  scroll=ft.ScrollMode.AUTO,
+                  controls=[self._column])
         return cont

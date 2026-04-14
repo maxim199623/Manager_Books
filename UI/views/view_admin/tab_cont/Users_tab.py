@@ -1,12 +1,12 @@
 import flet as ft
 from pydantic import ValidationError
 
-from Http_Client.client import ApiClient
+from core.Http_Client.client import ApiClient
 from core.Http_Client.errors import ConflictError
 from core.Http_Client.schemas.users import UserRead, UserRole, UserCreate, UserPatch
 from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
-from state import AppState, MessageLevel
+from core.state import AppState, MessageLevel
 
 
 class Users_Tab:
@@ -19,6 +19,7 @@ class Users_Tab:
         self.coll = ft.Column(expand=True)
         self.loader = ft.ProgressBar(bar_height=10, border_radius=10, visible=False)
         self.table = ft.DataTable(expand=True, columns=[])
+        self.mobile_list = ft.ListView(expand=True,spacing=8,visible=False)
 
         self.dialog_del = ft.AlertDialog(modal=True)
 
@@ -64,6 +65,9 @@ class Users_Tab:
         self.coll.controls.append(self.loader)
 
         self._settings_table()
+        self.coll.controls.append(self.table)
+        self.coll.controls.append(self.mobile_list)
+        self.cont.content = self.coll
 
 
     def _settings_table(self):
@@ -73,8 +77,51 @@ class Users_Tab:
         self.table.columns.append(ft.DataColumn(label=ft.Text("created_at", size=25)))
         self.table.columns.append(ft.DataColumn(label=ft.Text("", size=25)))
 
-        self.coll.controls.append(self.table)
-        self.cont.content = self.coll
+
+    def _add_mobile_list(self, user: UserRead):
+        _list_con = ft.Container()
+        _list_con.padding=10
+        _list_con.border=ft.border.all(1, ft.Colors.BLACK26)
+        _list_con.border_radius=10
+
+        _list_col = ft.Column(tight=True,spacing=4)
+        _list_col.controls.append(ft.Text(f"ID: {user.id}"))
+        _list_col.controls.append(ft.Text(f"Email: {user.email}"))
+        _list_col.controls.append(ft.Text(f"Role: {user.role}"))
+        _list_col.controls.append(ft.Text(str(user.created_at)))
+        _list_col.controls.append(ft.Row(controls=[
+            get_button(text="", icon=ft.Icons.PERSON_ADD_ALT, func_but=self._func_but, button_name={"id": user.id, "button_name":"change_user"}),
+            get_button(text="", icon=ft.Icons.DELETE_FOREVER_OUTLINED, func_but=self._func_but,button_name={"id": user.id, "button_name": "del_user"})
+            ]))
+
+        _list_con.content=_list_col
+        return _list_con
+
+    def _add_new_mobile_list(self):
+        _list_con = ft.Container()
+        _list_con.padding = 10
+        _list_con.border = ft.border.all(1, ft.Colors.BLACK26)
+        _list_con.border_radius = 10
+
+        _list_col = ft.Column(tight=True, spacing=4)
+
+        _list_col.controls.append(get_text_field(label="email", func_field=self._func_field, field_name="email", width=250))
+        _list_col.controls.append(ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120, options=[
+                ft.DropdownOption(key=UserRole.USER, text=UserRole.USER),
+                ft.DropdownOption(key=UserRole.ADMIN, text=UserRole.ADMIN)
+            ]))
+        _list_col.controls.append(get_text_field(label="password", func_field=self._func_field, field_name="password", width=250, password=True))
+        _list_col.controls.append(get_button(text="", icon=ft.Icons.PERSON_ADD_ALT, func_but=self._func_but, button_name={"id": 0, "button_name":"add_user"}))
+
+        _list_con.content = _list_col
+        return _list_con
+
+
+    def sync_view_mode(self):
+        is_small = self.page.width < 1100
+        self.table.visible = not is_small
+        self.mobile_list.visible = is_small
+
 
     def add_row(self, user: UserRead):
         row = ft.DataRow(cells=[
@@ -87,8 +134,10 @@ class Users_Tab:
         ])
 
         self.table.rows.append(row)
+        self.mobile_list.controls.append(self._add_mobile_list(user))
         if self._built:
             self.table.update()
+            self.mobile_list.update()
 
     def _add_new_row(self):
         row = ft.DataRow(cells=[
@@ -102,8 +151,10 @@ class Users_Tab:
             ft.DataCell(get_button(text="", icon=ft.Icons.PERSON_ADD_ALT, func_but=self._func_but, button_name={"id": 0, "button_name":"add_user"}))
         ])
         self.table.rows.append(row)
+        self.mobile_list.controls.append(self._add_new_mobile_list())
         if self._built:
             self.table.update()
+            self.mobile_list.update()
 
     def _func_field(self, e):
         ic(e.control.data, e.control.value)
@@ -167,7 +218,9 @@ class Users_Tab:
     async def _get_rows(self):
        users = await self.api.get_users()
        ic(users)
+       self.sync_view_mode()
        self.table.rows.clear()
+       self.mobile_list.controls.clear()
        for user in users:
            self.add_row(user)
        self._add_new_row()

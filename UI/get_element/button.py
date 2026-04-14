@@ -1,6 +1,6 @@
 import flet as ft
 
-def get_button(*, text: str, size:int = 15, button_name, width=None, icon=None, func_but):
+def get_button(*, text: str, size:int = 15, button_name=None, width=None, icon=None, func_but=None):
     return ft.Button(
         content=ft.Text(text, size=size),
         on_click=func_but,
