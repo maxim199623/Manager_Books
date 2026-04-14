@@ -95,13 +95,10 @@ class LoginView(BaseView):
     async def _on_login_click(self, e):
         self._set_loading(True)
         try:
-            #TODO времянка
-           # await self.auth_logic.login(
-           #     self.email.value,
-           #     self.password.value,
-           # )
-            await self.auth_logic.login("test_user@default.ru", "test_user")
-            #await self.auth_logic.login("test_user_1@def.ru", "123")
+            await self.auth_logic.login(
+                self.email.value,
+                self.password.value,
+            )
         finally:
             self._set_loading(False)
 

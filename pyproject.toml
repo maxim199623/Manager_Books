@@ -15,6 +15,7 @@ flet = "^0.83.1"
 flet-web = "^0.83.1"
 flet-desktop = "^0.83.1"
 pyjwt = "^2.12.1"
+icecream = "^2.2.0"
 
 
 [build-system]
