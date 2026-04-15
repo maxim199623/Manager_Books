@@ -6,7 +6,6 @@ from core.Http_Client.client import ApiClient
 from UI.get_element.button import get_button
 from core.state import AppState, MessageLevel
 from core.users.models import UserRole
-from pathlib import Path
 
 
 class Book_cont:
@@ -22,7 +21,8 @@ class Book_cont:
         self.min_view = ft.Container(visible=False, expand=True)
 
         self.cont.content = ft.Stack([self.full_view, self.min_view], expand=True)
-
+        self.file_picker = ft.FilePicker()
+        self.book = None
         self.is_build = False
 
     def _settings_dialog_del(self, message:str , _id: int):
@@ -73,7 +73,7 @@ class Book_cont:
     def _get_cont_button(self, index):
         button_coll = ft.Column()
         button_coll.controls.append(self.loader)
-        if not self.page.web:
+        if self.book is not None:
             button_coll.controls.append(get_button(button_name=index, text="Скачать", func_but=self.load_button))
         if self.state.user.role == UserRole.ADMIN:
             button_coll.controls.append(get_button(button_name=index, text="Удалить", func_but=self.del_button))
@@ -84,6 +84,7 @@ class Book_cont:
     def _get_elements(self, cover, title, description, index):
         if cover is None:
             cover = open("UI/views/view_books/cover.png", "rb").read()
+        all_colum = ft.Column()
         all_row = ft.Row(expand=True)
         data_column = ft.Column(alignment = ft.MainAxisAlignment.CENTER, expand=True)
 
@@ -92,10 +93,24 @@ class Book_cont:
         cont_description = self._get_cont_description(description)
         cont_button = self._get_cont_button(index)
 
+        progressbar = ft.ProgressBar()
+        self.page.run_task(self.get_progressbar, index=index, progressbar=progressbar)
+
         data_column.controls = [cont_title,cont_description]
         all_row.controls = [image,data_column,cont_button]
+        all_colum.controls = [progressbar, all_row]
 
-        return all_row
+        return all_colum
+
+    async def get_progressbar(self, index, progressbar):
+        try:
+            full = await self.api.get_chapters_num(index)
+            read = await self.api.get_count_read_chapters_in_book(index)
+            progressbar.value = read.read_chapters / full.chapters_count
+        except Exception as exc:
+            self.state.notify(message=f"ошибка получения истории: {exc}", level=MessageLevel.ERROR)
+        if self.is_build:
+            progressbar.update()
 
     def _get_min_elements(self, cover, title, description, index):
         if cover is None:
@@ -104,18 +119,35 @@ class Book_cont:
         image = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.COVER)
         des = ft.Container(alignment=ft.Alignment.BOTTOM_LEFT,padding=12)
         des.content = ft.Column(tight=True, spacing=4, controls=[
-            ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.WHITE,overflow=ft.TextOverflow.ELLIPSIS)
+            ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.PRIMARY, overflow=ft.TextOverflow.ELLIPSIS)
         ])
-        all_row.controls = [image, des]
+
+        progressbar = ft.ProgressBar()
+        self.page.run_task(self.get_progressbar, index=index, progressbar=progressbar)
+
+        button = ft.Row(expand=True, alignment=ft.MainAxisAlignment.SPACE_AROUND,)
+        if self.book is not None:
+            button.controls.append(ft.IconButton(icon=ft.Icons.DOWNLOAD, on_click=self.load_button, data=index))
+        if self.state.user.role == UserRole.ADMIN:
+            button.controls.append(ft.IconButton(icon=ft.Icons.DELETE_FOREVER_ROUNDED, on_click=self.del_button, data=index))
+        all_row.controls = [progressbar, image, des, button]
         return all_row
 
     def get_cont(self, cover=None, title="None", description="None", index=None, data=None):
         self.is_build = True
+        self.book = data
         self._settings_cont(index, data)
         self.full_view.content = self._get_elements(cover, title, description, index)
         self.min_view.content = self._get_min_elements(cover, title, description, index)
         self.apply_mode()
         return self.cont
+
+    def get_book(self):
+        return self.book
+
+    def change_visible(self, visible:bool = True):
+        self.cont.visible = visible
+        self.cont.update()
 
     def apply_mode(self):
         ic()
@@ -144,7 +176,8 @@ class Book_cont:
         """Кнопка удаления книги"""
         ic()  # type: ignore
         ic(e.control.data)
-        self._settings_dialog_del(message=f"Удалить пользователя {e.control.data}", _id=e.control.data)
+        book = e.control.data if self.book is None else self.book.title
+        self._settings_dialog_del(message=f"Удалить книгу {book}", _id=e.control.data)
         self.page.show_dialog(self.dialog_del)
 
     def dial_button(self, e):
@@ -164,28 +197,25 @@ class Book_cont:
         except Exception as exc:
             self.state.notify(message=f"ошибка удаления Книги: {exc}", level=MessageLevel.ERROR)
 
-    def load_button(self, e):
+    async def load_button(self, e):
         """Кнопка для скачивания книги"""
         ic(e.control.data)  # type: ignore
         book = self.cont.data["book"]
-        path = Path("output") / f"{book.title.replace(' / ', '_')}.{book.format}"
-        if path.exists():
-            self.state.notify(message=f"Файл уже скачен", level=MessageLevel.INFO)
-            e.control.visible = False
-            e.control.update()
-        else:
-            self.page.run_task(self.load_book,button=e.control, book=book, path=path)
-
-    async def load_book(self, button, book, path):
+        button = e.control
         button.visible = False
         self.loader.visible = True
         button.update()
         self.loader.update()
         try:
-            with open(path, "wb") as f:
-                 f.write(book.file)
+            await self.file_picker.save_file(
+            dialog_title="Сохранить файл",
+            file_name=f"{book.title.replace(' / ', '_')}.{book.format}",
+            src_bytes=book.file
+            )
         finally:
             self.loader.visible = False
+            button.visible = True
+            button.update()
             self.loader.update()
 
     def click_book(self,e):

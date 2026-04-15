@@ -60,9 +60,7 @@ def main():
     parser = argparse.ArgumentParser(description="Менеджер Книг")
     setting_parser(parser)
     args = parser.parse_args()
-
     apply_logger(debug=args.debug)
-
     if args.web:
         ft.app(target=ui, view = ft.AppView.WEB_BROWSER, port=8550, assets_dir="assets") # только браузер
     else:

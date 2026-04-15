@@ -1,5 +1,5 @@
 import flet as ft
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel, SecretStr, field_validator, EmailStr
 
 from core.Http_Client.client import ApiClient
 from core.Http_Client.errors import ConflictError
@@ -8,6 +8,25 @@ from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
 from core.state import AppState, MessageLevel
 
+class UserNew(BaseModel):
+    email: EmailStr = None
+    password: SecretStr = None
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, v: SecretStr):
+        pwd = v.get_secret_value()
+        if len(pwd) < 8:
+            raise ValueError("Пароль должен быть не короче 8 символов")
+        if not any(c.islower() for c in pwd):
+            raise ValueError("Нужна строчная буква")
+        if not any(c.isupper() for c in pwd):
+            raise ValueError("Нужна заглавная буква")
+        if not any(c.isdigit() for c in pwd):
+            raise ValueError("Нужна цифра")
+        if not any(not c.isalnum() for c in pwd):
+            raise ValueError("Нужен спецсимвол")
+        return v
 
 class Users_Tab:
     def __init__(self, page):
@@ -143,7 +162,7 @@ class Users_Tab:
         row = ft.DataRow(cells=[
             ft.DataCell(ft.Text("", size=25)),
             ft.DataCell(get_text_field(label="email", func_field=self._func_field, field_name="email", width=250)),
-            ft.DataCell(ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120, options=[
+            ft.DataCell(ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120,options=[
                 ft.DropdownOption(key=UserRole.USER, text=UserRole.USER),
                 ft.DropdownOption(key=UserRole.ADMIN, text=UserRole.ADMIN)
             ])),
@@ -158,7 +177,27 @@ class Users_Tab:
 
     def _func_field(self, e):
         ic(e.control.data, e.control.value)
-        self.new_user[e.control.data] = e.control.value
+        check = True
+        match e.control.data:
+            case "email":
+                try:
+                    UserNew(email= e.control.value)
+                    e.control.border_color = None
+                    check = True
+                except ValidationError:
+                    e.control.border_color = ft.Colors.RED
+                    check = False
+            case "password":
+                 try:
+                    UserNew(password=e.control.value)
+                    e.control.border_color = None
+                    check = True
+                 except ValidationError:
+                    e.control.border_color = ft.Colors.RED
+                    check = False
+        if check:
+            ic(check)
+            self.new_user[e.control.data] = e.control.value
 
     def _func_but(self, e):
         ic(e.control.data)
@@ -209,13 +248,17 @@ class Users_Tab:
             await self._get_rows()
         except ValidationError as exc:
             self.state.notify(message=f"Не те данные: {exc}", level=MessageLevel.ERROR)
+            await self._get_rows()
         except ConflictError as exc:
             self.state.notify(message=f"Такой пользователь уже есть", level=MessageLevel.ERROR)
+            await self._get_rows()
         except Exception as exc:
             self.state.notify(message=f"Ошибка добавления пользователя: {exc}", level=MessageLevel.ERROR)
+            await self._get_rows()
 
 
     async def _get_rows(self):
+       self.new_user = dict.fromkeys(self.new_user, None)
        users = await self.api.get_users()
        ic(users)
        self.sync_view_mode()

@@ -26,18 +26,53 @@ class BooksView(BaseView):
                 width = self.page.width
                 )
         self.loader = ft.ProgressBar(bar_height = 10, border_radius=10)
+        self.search = ft.SearchBar(bar_hint_text="Поиск...", bar_bgcolor = ft.Colors.PRIMARY_CONTAINER,
+                                   on_change=self._search, autofocus=True)
+        self.drow = ft.Dropdown()
 
+        self.search_row = ft.Row(controls=[self.drow,ft.Container(expand=True,content= self.search)])
+        self._settings_drow()
         self._column = ft.ResponsiveRow(spacing=10,
                         run_spacing=10,
-                        controls=[self.loader])
+                        controls=[self.search_row, self.loader])
+
         self.cards = []
         self._get_books()
+
+    def _settings_drow(self):
+        self.drow.value = "name"
+        self.drow.options.append(ft.DropdownOption(key="name", text="Название"))
+        self.drow.options.append(ft.DropdownOption(key="author", text="Автор"))
+        self.drow.options.append(ft.DropdownOption(key="series", text="Серия"))
+
+    async def _search(self):
+        search_value = self.search.value
+        search_key = self.drow.value
+        ic(search_value, search_key)
+
+        for card in self.cards:
+           book = card.get_book()
+           card.change_visible(True)
+           if search_value != "":
+               query = search_value.strip().casefold()
+               match search_key:
+                    case "name":
+                        title = book.title.strip().casefold()
+                        card.change_visible(query in title)
+                    case "author":
+                        author = book.author.strip().casefold()
+                        card.change_visible(query in author)
+                    case "series":
+                        series = book.series.strip().casefold()
+                        card.change_visible(query in series)
+               await self.search.focus()
 
 
     def _app_bar_settings(self):
         self.app_bar.title = ft.Text("Менеджер Книг")
         self.app_bar.center_title = True
         self.app_bar.actions = [ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.state.clear_user)]
+
 
     def _get_books(self):
         """Запуск async загрузки"""
