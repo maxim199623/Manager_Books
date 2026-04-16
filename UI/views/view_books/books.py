@@ -87,9 +87,6 @@ class BooksView(BaseView):
             cont_book = card.get_cont(
                 title=book.title, description=book.description, index=book.id, cover=book.cover, data = book
                 )
-            if book.file is None:
-                cont_book.content.controls[2].content.controls[0].content = "Нет файла"
-                cont_book.content.controls[2].content.controls[0].disabled = True
             cont_book.col = {ft.ResponsiveRowBreakpoint.XS: 6,
                              ft.ResponsiveRowBreakpoint.SM: 4,
                              ft.ResponsiveRowBreakpoint.MD: 3,

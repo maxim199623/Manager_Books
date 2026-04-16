@@ -70,7 +70,7 @@ class Add_Book_Tab:
             "title": lambda b: ", ".join(b.title),
             "author": lambda b: b.author,
             "series": lambda b: b.series,
-            "format": lambda b: b.file_format,
+            "format": lambda b: b.format,
             "description": lambda b: b.description,
         }
         for c in self.coll1.controls:

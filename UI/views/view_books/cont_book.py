@@ -24,6 +24,7 @@ class Book_cont:
         self.file_picker = ft.FilePicker()
         self.book = None
         self.is_build = False
+        self.is_chapers= False
 
     def _settings_dialog_del(self, message:str , _id: int):
         self.dialog_del.title = ft.Text("Удаление")
@@ -73,7 +74,7 @@ class Book_cont:
     def _get_cont_button(self, index):
         button_coll = ft.Column()
         button_coll.controls.append(self.loader)
-        if self.book is not None:
+        if self.book.file is not None:
             button_coll.controls.append(get_button(button_name=index, text="Скачать", func_but=self.load_button))
         if self.state.user.role == UserRole.ADMIN:
             button_coll.controls.append(get_button(button_name=index, text="Удалить", func_but=self.del_button))
@@ -106,7 +107,12 @@ class Book_cont:
         try:
             full = await self.api.get_chapters_num(index)
             read = await self.api.get_count_read_chapters_in_book(index)
-            progressbar.value = read.read_chapters / full.chapters_count
+            if full.chapters_count == 0:
+                progressbar.visible = False
+                self.is_chapers = False
+            else:
+                progressbar.value = read.read_chapters / full.chapters_count
+                self.is_chapers = True
         except Exception as exc:
             self.state.notify(message=f"ошибка получения истории: {exc}", level=MessageLevel.ERROR)
         if self.is_build:
@@ -126,7 +132,7 @@ class Book_cont:
         self.page.run_task(self.get_progressbar, index=index, progressbar=progressbar)
 
         button = ft.Row(expand=True, alignment=ft.MainAxisAlignment.SPACE_AROUND,)
-        if self.book is not None:
+        if self.book.file is not None:
             button.controls.append(ft.IconButton(icon=ft.Icons.DOWNLOAD, on_click=self.load_button, data=index))
         if self.state.user.role == UserRole.ADMIN:
             button.controls.append(ft.IconButton(icon=ft.Icons.DELETE_FOREVER_ROUNDED, on_click=self.del_button, data=index))
@@ -134,12 +140,12 @@ class Book_cont:
         return all_row
 
     def get_cont(self, cover=None, title="None", description="None", index=None, data=None):
-        self.is_build = True
         self.book = data
         self._settings_cont(index, data)
         self.full_view.content = self._get_elements(cover, title, description, index)
         self.min_view.content = self._get_min_elements(cover, title, description, index)
         self.apply_mode()
+        self.is_build = True
         return self.cont
 
     def get_book(self):
@@ -221,7 +227,10 @@ class Book_cont:
     def click_book(self,e):
         """Нажатие на контейнер"""
         ic(e.control.data["index"])  # type: ignore
-        self.state.select_book(book_id=e.control.data["index"], book=e.control.data["book"])
+        if self.is_chapers:
+            self.state.select_book(book_id=e.control.data["index"], book=e.control.data["book"])
+        else:
+            self.state.notify(message=f"Нет загруженных глав", level=MessageLevel.INFO)
 
 
 

@@ -150,7 +150,9 @@ class AdminView(BaseView):
                    self.add_book_tab.set_filed(book)
                 else:
                     self.form_data["file"] = data
-                    self.form_data["file_format"] = ext
+                    self.form_data["format"] = ext
+                    book = BookCreate(**self.form_data)
+                    self.add_book_tab.set_filed(book)
             case "cover":
                 ic(key)
                 self.form_data[key] = data
@@ -186,7 +188,7 @@ class AdminView(BaseView):
         book = BookCreate(title=self.book.title,
                           description=self.book.description,
                           author=self.book.author,
-                          format=self.book.file_format,
+                          format=self.book.format,
                           series=self.book.series,
                           cover=self.book.cover,
                           file=self.book.file)

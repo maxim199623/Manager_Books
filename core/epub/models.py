@@ -10,7 +10,7 @@ class Book(BaseModel):
     title: List[str]
     author: Optional[str]
     description: Optional[str]
-    file_format: str = "epub"
+    format: str = "epub"
     chapters: List[Chapter]
     series: Optional[str] = None
     file: Optional[bytes]
