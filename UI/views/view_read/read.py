@@ -259,17 +259,24 @@ class ReadView(BaseView):
                     )
         system = body.copy(italic=False, color=ft.Colors.SECONDARY)
 
+        center = ft.MainAxisAlignment.CENTER
         md_style_sheet = ft.MarkdownStyleSheet(p_text_style=body,
+                                               h1_text_style=body.copy(size=self.text_size + 12, weight=ft.FontWeight.BOLD),
+                                               h1_alignment=center,
                                                h2_text_style=body.copy(size=self.text_size + 6, weight=ft.FontWeight.BOLD),
+                                               h2_alignment=center,
+                                               h3_text_style=body.copy(size=self.text_size + 4, weight=ft.FontWeight.W_600),
+                                               h3_alignment=center,
                                                em_text_style=system,
                                                strong_text_style=body.copy(weight=ft.FontWeight.BOLD),
-                                               block_spacing=16,
+                                               block_spacing=10,
                                                p_padding=ft.padding.only(bottom=8)
                                                )
         coll.controls.append(ft.Markdown(
             value=markdown,
             soft_line_break=False,
             selectable=True,
+            fit_content=False,
             extension_set=ft.MarkdownExtensionSet.COMMON_MARK,
             md_style_sheet=md_style_sheet
         ))
