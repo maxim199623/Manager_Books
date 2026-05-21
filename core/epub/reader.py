@@ -59,16 +59,8 @@ class EpubReader:
         if item is None:
             print(f"Элемент с href '{href}' не найден.")
             return None
-        content = item.get_content()
-        soup = BeautifulSoup(content, "html.parser")
-        text_chapter = []
-        for element in soup.body.descendants: # Проходим по всем элементам внутри <body>
-            if element.name:  # Если это HTML-тег
-                text = element.get_text(strip=True) # Извлекаем текст внутри тега
-                if text: # Игнорируем пустые строки
-                    text_chapter.append(text)
-                    #text_chapter.append((element.name, text))
-        return text_chapter
+        html = item.get_body_content().decode("utf-8", errors="ignore")
+        return html
 
 
     def _load_chapters(self, read_book) -> List[Chapter]:

@@ -17,6 +17,7 @@ flet-desktop = "^0.83.1"
 pyjwt = "^2.12.1"
 icecream = "^2.2.0"
 websockets = "^16.0"
+markdownify = "^1.2.2"
 
 
 [build-system]

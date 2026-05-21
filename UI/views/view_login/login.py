@@ -1,4 +1,5 @@
 import flet as ft
+from pygments.styles import default
 
 from UI.views.BaseView import BaseView
 
@@ -24,6 +25,8 @@ class LoginView(BaseView):
         self.password = self._get_text_field(label="Password", password=True)
         self.login_button = self._get_button(text="Войти", func=self._on_login_click)
         self.loader = ft.ProgressRing(visible=False)
+        self._auto_login_started = False
+        self.page.run_task(self._try_default_login)
 
     def _page_resize(self):
         pass
@@ -79,6 +82,18 @@ class LoginView(BaseView):
                         self.loader,
                     ],
                 )
+
+    async def _try_default_login(self):
+        if self.state.is_authenticated or self._auto_login_started:
+            return
+
+        self._auto_login_started = True
+        self._set_loading(True)
+        try:
+            await self.auth_logic.login("default@default.ru", "default")
+        finally:
+            self._set_loading(False)
+
 
     def build_content(self) -> ft.Control:
         """

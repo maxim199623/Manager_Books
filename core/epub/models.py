@@ -3,7 +3,7 @@ from typing import List, Optional
 
 class Chapter(BaseModel):
     title: str
-    content: List[str]
+    content: str
 
 class Book(BaseModel):
     cover: Optional[bytes]

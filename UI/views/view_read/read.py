@@ -8,6 +8,7 @@ from core.state import MessageLevel
 from core.users.models import UserRole
 
 from UI.get_element.text_field import get_text_field
+from markdownify import markdownify as md
 
 class ReadView(BaseView):
 
@@ -202,16 +203,27 @@ class ReadView(BaseView):
         coll = ft.Column()
         coll.scroll=ft.ScrollMode.AUTO
         coll.margin=20
-        for index, desc in enumerate(description):
-            if index == 0:
-                coll.controls.append(
-                    ft.Container(
-                        alignment=ft.Alignment.CENTER,
-                        content = ft.Text(desc, size=self.text_size+15,
-                                          text_align=ft.TextAlign.CENTER, font_family=self.current_front)
-                    ))
-            else:
-                coll.controls.append(ft.Text(desc, size=self.text_size, font_family=self.current_front))
+        markdown = md(description, heading_style="ATX", bullets="-")
+        p_text_style=ft.TextStyle(
+                        size=self.text_size,
+                        font_family=self.current_front,
+                    )
+        h1_text_style = ft.TextStyle(
+                        size=self.text_size + 15,
+                        font_family=self.current_front,
+                    )
+        h2_text_style = ft.TextStyle(
+                        size=self.text_size + 10,
+                        font_family=self.current_front,
+                    )
+        md_style_sheet = ft.MarkdownStyleSheet(p_text_style=p_text_style,
+                                               h1_text_style=h1_text_style,
+                                               h2_text_style=h2_text_style)
+        coll.controls.append(ft.Markdown(
+            value=markdown,
+            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+            md_style_sheet=md_style_sheet
+        ))
         return coll
 
     def _change_drawer(self, e):

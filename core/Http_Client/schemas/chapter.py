@@ -10,15 +10,8 @@ from base64 import b64encode, b64decode
 class ChapterCreate(BaseModel):
     chapter: int
     chapter_name: str
-    description: List[str]
+    description: str
     file: Optional[bytes] = None
-
-    # ---------- выход: List[str] → str ----------
-    @field_serializer("description")
-    def serialize_description(self, v):
-        if isinstance(v, list):
-            return json.dumps(v, ensure_ascii=False)
-        return v
 
     # ---------- выход: bytes → base64 ----------
     @field_serializer("file")
@@ -34,24 +27,9 @@ class ChapterRead(BaseModel):
     book_id: uuid.UUID
     chapter: int
     chapter_name: str
-    description: List[str]
+    description: str
     file: Optional[bytes] = None
     created_at: datetime
-
-    # ---------- вход: str → List[str] ----------
-    @field_validator("description", mode="before")
-    def parse_description_strict(cls, v):
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            try:
-                parsed = json.loads(v)
-            except json.JSONDecodeError:
-                raise ValueError("description must be a JSON array")
-            if not isinstance(parsed, list):
-                raise ValueError("description JSON must be an array")
-            return [str(x) for x in parsed]
-        return v
 
     # ---------- вход: base64 → bytes ----------
     @field_validator( "file", mode="before")
