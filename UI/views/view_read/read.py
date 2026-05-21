@@ -203,7 +203,11 @@ class ReadView(BaseView):
         coll = ft.Column()
         coll.scroll=ft.ScrollMode.AUTO
         coll.margin=20
-        markdown = md(description, heading_style="ATX", bullets="-")
+        markdown = md(description, wrap=False,
+                      newline_style="BACKSLASH",
+                      strip_document=None,
+                      bs4_options="html5lib")
+
         p_text_style=ft.TextStyle(
                         size=self.text_size,
                         font_family=self.current_front,
@@ -221,6 +225,7 @@ class ReadView(BaseView):
                                                h2_text_style=h2_text_style)
         coll.controls.append(ft.Markdown(
             value=markdown,
+            soft_line_break=True,
             extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
             md_style_sheet=md_style_sheet
         ))
