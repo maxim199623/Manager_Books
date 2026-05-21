@@ -1,4 +1,5 @@
 import base64
+import re
 
 import flet as ft
 
@@ -180,7 +181,8 @@ class ReadView(BaseView):
     async def get_history(self):
         try:
            history = await self.api.get_read_chapters_in_book(self.state.current_book_id)
-           return history
+           ic(sorted(history))
+           return sorted(history)
         except Exception as exc:
             self.state.notify(message=f"ошибка получения истории глав: {exc}", level=MessageLevel.ERROR)
         return []
@@ -190,7 +192,6 @@ class ReadView(BaseView):
         try:
             chapter = await self.api.get_chapter(self.state.current_book_id, index)
             self.current_chapter = chapter
-            ic(chapter)
         except Exception as exc:
             self.state.notify(message=f"ошибка получения главы: {exc}", level=MessageLevel.ERROR)
         if chapter.chapter_name == "Постер":
@@ -202,36 +203,74 @@ class ReadView(BaseView):
             self._pagelet.content.content = new_content
         self._pagelet.update()
 
+    @staticmethod
+    def _parser(description):
+        html = description.replace("&#13;", "").replace("\r", "")
+        soup = BeautifulSoup(html, "html5lib")
+        # 1) Склейка  <i>
+        for p in soup.find_all("p"):
+            tags = [c for c in p.children if isinstance(c, Tag)]
+            if tags and all(t.name == "i" for t in tags):
+                parts = [" ".join(t.get_text().split()) for t in p.find_all("i")]
+                text = " ".join(x for x in parts if x)
+                text = " ".join(text.split())
+                p.clear()
+                p.append(soup.new_tag("i"))
+                p.i.string = text
+        # 2) Пробелы — после склейки
+        for node in soup.find_all(string=True):
+            if isinstance(node, NavigableString) and getattr(node.parent, "name", None) not in ("script", "style"):
+                node.replace_with(" ".join(str(node).split()))
+        # 3) [ Системное сообщение ] без <i> → в <i> для стиля
+        for p in soup.find_all("p"):
+            t = " ".join(p.get_text().split())
+            if t.startswith("[") and t.endswith("]") and not p.find("i"):
+                p.clear()
+                p.append(soup.new_tag("i"))
+                p.i.string = t
+        return str(soup.body or soup)
 
+    @staticmethod
+    def _fix_markdown_brackets(markdown: str) -> str:
+        def fix_line(line: str) -> str:
+            if "[" not in line or "]" not in line or "](" in line:
+                return line
+            return re.sub(
+                r"\[([^\]]*)\]",
+                lambda m: "\uff3b " + m.group(1).strip() + " \uff3d",
+                line,
+            )
+        return "\n".join(fix_line(line) for line in markdown.split("\n"))
 
     def get_chapter_description(self, description):
         coll = ft.Column()
         coll.scroll=ft.ScrollMode.AUTO
         coll.margin=20
-        markdown = md(description, wrap=False,
-                      newline_style="BACKSLASH",
-                      strip_document=None,
-                      bs4_options="html5lib")
+        html = self._parser(description)
+        markdown = self._fix_markdown_brackets(md(html,
+                                                  wrap=False,
+                                                  heading_style="ATX",
+                                                  bullets="-"))
 
-        p_text_style=ft.TextStyle(
+        body =ft.TextStyle(
                         size=self.text_size,
                         font_family=self.current_front,
+                        height=1.6,
                     )
-        h1_text_style = ft.TextStyle(
-                        size=self.text_size + 15,
-                        font_family=self.current_front,
-                    )
-        h2_text_style = ft.TextStyle(
-                        size=self.text_size + 10,
-                        font_family=self.current_front,
-                    )
-        md_style_sheet = ft.MarkdownStyleSheet(p_text_style=p_text_style,
-                                               h1_text_style=h1_text_style,
-                                               h2_text_style=h2_text_style)
+        system = body.copy(italic=False, color=ft.Colors.SECONDARY)
+
+        md_style_sheet = ft.MarkdownStyleSheet(p_text_style=body,
+                                               h2_text_style=body.copy(size=self.text_size + 6, weight=ft.FontWeight.BOLD),
+                                               em_text_style=system,
+                                               strong_text_style=body.copy(weight=ft.FontWeight.BOLD),
+                                               block_spacing=16,
+                                               p_padding=ft.padding.only(bottom=8)
+                                               )
         coll.controls.append(ft.Markdown(
             value=markdown,
-            soft_line_break=True,
-            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+            soft_line_break=False,
+            selectable=True,
+            extension_set=ft.MarkdownExtensionSet.COMMON_MARK,
             md_style_sheet=md_style_sheet
         ))
         return coll

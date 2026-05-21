@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from typing import Optional, List, Callable, Literal, Dict
 
@@ -20,7 +21,7 @@ class AppState:
         self.message_level: MessageLevel = MessageLevel.ERROR
 
         self.user: Optional[User] = None
-        self.current_book_id: Optional[int] = None
+        self.current_book_id: Optional[uuid.UUID] = None
         self.current_book: Optional[BookRead] = None
 
         self.settings_API: APISetting = Settings().api_config()
