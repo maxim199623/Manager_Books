@@ -5,7 +5,7 @@ from pathlib import Path
 
 from icecream import ic, install
 
-def setup_logging(*, config_path: str = "core/logging_config.json", debug: bool = False) -> None:
+def setup_logging(*, config_path: str = "logging_config.json", debug: bool = False) -> None:
     install()
     Path("logs").mkdir(exist_ok=True)
     with open(config_path, "r", encoding="utf-8") as f:

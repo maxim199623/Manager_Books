@@ -52,8 +52,8 @@ class ReadView(BaseView):
     def _app_bar_settings(self):
         self.app_bar.title = ft.Text(self.state.current_book.title)
         self.app_bar.center_title = True
-        self.app_bar.leading =ft.IconButton(icon = ft.Icons.ARROW_BACK, on_click=self.state.clear_selected_book)
-        self.app_bar.actions = [ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.state.clear_user)]
+        self.app_bar.leading = ft.IconButton(icon = ft.Icons.ARROW_BACK, on_click=self.state.clear_selected_book)
+        self.app_bar.actions.append(ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.auth_logic.logout))
 
 
     def _get_dropdown(self):

@@ -6,7 +6,8 @@ from core.Http_Client.errors import ConflictError
 from core.Http_Client.schemas.users import UserRead, UserRole, UserCreate, UserPatch
 from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
-from core.state import AppState, MessageLevel
+from core.state import AppState
+from core.MessageLevel import MessageLevel
 
 class UserNew(BaseModel):
     email: EmailStr = None
@@ -253,8 +254,9 @@ class Users_Tab:
             self.state.notify(message=f"Такой пользователь уже есть", level=MessageLevel.ERROR)
             await self._get_rows()
         except Exception as exc:
-            self.state.notify(message=f"Ошибка добавления пользователя: {exc}", level=MessageLevel.ERROR)
-            await self._get_rows()
+            if self.state.is_authenticated:
+                self.state.notify(message=f"Ошибка добавления пользователя: {exc}", level=MessageLevel.ERROR)
+                await self._get_rows()
 
 
     async def _get_rows(self):

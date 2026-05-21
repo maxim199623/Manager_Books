@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, EmailStr
 from core.users.models import UserRole
 from datetime import datetime
@@ -20,7 +22,7 @@ class UserPatch(BaseModel):
     password: str  | None = None
 
 class UserRead(BaseModel):
-    id: int
+    id: uuid.UUID
     email: EmailStr
     role: str
     created_at: datetime

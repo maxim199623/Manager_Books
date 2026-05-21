@@ -8,9 +8,6 @@ from core.state import AppState, MessageLevel
 
 
 class Router:
-    """
-    связывает route → View
-    """
 
     def __init__(self, page: ft.Page):
         self.page = page
@@ -37,13 +34,22 @@ class Router:
 
     def start(self):
         """Запуск приложения"""
-        self._navigate_to("/login")
+        self.restore_from_url()
+
+    def restore_from_url(self):
+        route = self.page.route or self.state.current_route or "/login"
+        self._navigate_to(route)
 
     def _navigate_to(self, route: str):
         """Смена страницы"""
         if route not in self.routes:
             route = "/login"
-        self.page.go(route)
+        self.state.current_route = route
+
+        if self.page.route == route:
+            self._render_route(route)
+        else:
+            self.page.go(route)
 
 
     def _check_role(self, view) -> bool:
@@ -65,31 +71,40 @@ class Router:
         else:
             self.state.changes_route("/books")
 
-    def _on_route_changes(self, e: ft.RouteChangeEvent):
-        route = e.route or "/"
-        ic(f"Переход на: {route}")
 
+
+    def _render_route(self, route: str):
         view_factory = self.routes.get(route)
         if not view_factory:
             self.page.go("/login")
             return
 
         view = view_factory()
+
         if not self._check_role(view):
             self.state.notify(
                 "Недостаточно прав доступа",
                 level=MessageLevel.WARNING,
             )
-            if self.state.is_authenticated:
-                self.page.go("/books")
-            else:
-                self.page.go("/login")
+            self.page.go("/books" if self.state.is_authenticated else "/login")
             return
-
 
         self.page.views.clear()
         self.page.views.append(view.build())
         self.page.update()
+
+    def _on_route_changes(self, e: ft.RouteChangeEvent):
+        route = e.route or "/"
+        ic(f"Переход на: {route}")
+        self.state.current_route = route
+
+        view_factory = self.routes.get(route)
+        if not view_factory:
+            self.page.go("/login")
+            return
+
+        self.state.current_route = route
+        self._render_route(route)
 
     def _on_view_pop(self, e: ft.ViewPopEvent):
         """Обработка кнопки Назад"""

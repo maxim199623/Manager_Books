@@ -1,10 +1,12 @@
 import base64
+from datetime import datetime, timezone, timedelta
 
 import flet as ft
 
 from core.Http_Client.client import ApiClient
 from UI.get_element.button import get_button
-from core.state import AppState, MessageLevel
+from core.state import AppState
+from core.MessageLevel import MessageLevel
 from core.users.models import UserRole
 
 
@@ -34,7 +36,10 @@ class Book_cont:
         self.dialog_del.actions.append(get_button(text="Нет", func_but=self.dial_button, button_name={"id": _id,"button_name": "del_not"}))
 
     def _settings_cont(self, index, book):
-        self.cont.border = ft.border.all(2, ft.Colors.BLACK26)
+        if book.created_at >= datetime.now() - timedelta(days=3):
+            self.cont.border = ft.border.all(2, ft.Colors.PRIMARY)
+        else:
+            self.cont.border = ft.border.all(2, ft.Colors.ON_PRIMARY)
         self.cont.border_radius = 10
         self.cont.margin=10
         self.cont.padding=10
@@ -120,7 +125,7 @@ class Book_cont:
 
     def _get_min_elements(self, cover, title, description, index):
         if cover is None:
-            cover = open("UI/views/view_books/cover.png", "rb").read()
+            cover = open("cover.png", "rb").read()
         all_row = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,  tight=True,)
         image = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.COVER)
         des = ft.Container(alignment=ft.Alignment.BOTTOM_LEFT,padding=12)
@@ -198,8 +203,8 @@ class Book_cont:
     async def _del_book(self, _id):
         try:
            await self.api.delete_book(_id)
-           self.cont.visible = False
-           self.cont.update()
+           #self.cont.visible = False
+           #self.cont.update()
         except Exception as exc:
             self.state.notify(message=f"ошибка удаления Книги: {exc}", level=MessageLevel.ERROR)
 

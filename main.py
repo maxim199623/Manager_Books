@@ -1,6 +1,8 @@
 import logging
+import sys
 from pathlib import Path
 
+from core.Http_Client.websocket_client import WebSocketClient
 from UI.Router import Router
 from core.Auth import AuthLogic
 from core.Http_Client.client import ApiClient
@@ -15,7 +17,6 @@ logger = logging.getLogger("app")
 
 def load_fonts(page: ft.Page, fonts_dir="assets/fonts"):
     fonts = {}
-
     for file in Path(fonts_dir).glob("*.ttf"):
         font_name = file.stem
         fonts[font_name] = f"/fonts/{file.name}"
@@ -34,19 +35,33 @@ def ui(page: ft.Page):
     page.window.min_height = 400
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.bgcolor = ft.Colors.BLUE
+    page.theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE)
+    page.theme_mode = ft.ThemeMode.DARK
+
 
     state: AppState = AppState()
+    ws = WebSocketClient(page=page, state=state)
     url = f"https://{state.settings_API.address}:{state.settings_API.port}"
     api = ApiClient(url)
-
     page.session.store.set("state", state)
-    page.session.store.set("auth", AuthLogic(state, api))
+    page.session.store.set("auth", AuthLogic(state, api, ws))
     page.session.store.set("api", api)
+
+    router = Router(page)
+
+    async def on_disconnect(e):
+        await ws.close()
+
+    def on_connect(e):
+        router.start()
+        if state.is_authenticated and api.token:
+            page.run_task(ws.connect, api.token, api.base_url)
 
     load_fonts(page)
 
-    router = Router(page)
+
+    page.on_disconnect = on_disconnect
+    page.on_connect = on_connect
     router.start()
 
 
@@ -54,7 +69,12 @@ def setting_parser(parser):
      parser.add_argument("--debug", action="store_true")
      parser.add_argument("--web", action="store_true")
 
-
+def get_assets_dir() -> str:
+    if getattr(sys, "frozen", False):
+        # запущено из exe
+        return str(Path(sys.executable).resolve().parent / "assets")
+    # обычный запуск из python
+    return str(Path(__file__).resolve().parent / "assets")
 
 def main():
     parser = argparse.ArgumentParser(description="Менеджер Книг")
@@ -62,9 +82,9 @@ def main():
     args = parser.parse_args()
     apply_logger(debug=args.debug)
     if args.web:
-        ft.app(target=ui, view = ft.AppView.WEB_BROWSER, port=8550, assets_dir="assets") # только браузер
+        ft.app(target=ui, view = ft.AppView.WEB_BROWSER, port=8550, assets_dir=get_assets_dir()) # только браузер
     else:
-        ft.run(ui, view=ft.AppView.FLET_APP, assets_dir="assets")  # только приложение
+        ft.run(ui, view=ft.AppView.FLET_APP, assets_dir=get_assets_dir())  # только приложение
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from typing import Iterable
 import flet as ft
 from abc import ABC, abstractmethod
 
+from core.Http_Client.websocket_client import WebSocketClient
 from core.Auth import AuthLogic
 from core.Http_Client.client import ApiClient
 from core.state import AppState, MessageLevel
@@ -28,10 +29,14 @@ class BaseView(ABC):
         self.api : ApiClient = page.session.store.get("api")
 
         self.modal_dialog = ft.AlertDialog(modal=False)
+        self.info_dialog = ft.SnackBar(content=ft.Text(""))
 
         self.app_bar: ft.AppBar = ft.AppBar(bgcolor=ft.Colors.PRIMARY_CONTAINER)
         self.drawer = ft.NavigationDrawer()
+        self.change_theme = ft.IconButton()
+        self._change_theme_setting()
         self._drawer_settings()
+        self._appbar_settings()
 
 
         # подписываемся на изменения state.message
@@ -46,6 +51,46 @@ class BaseView(ABC):
             self._show_message(ic(self.state.message),
                                self.state.message_level)
             self.state.clear_message()
+
+    def _get_pop_menu_item(self, color, text):
+        def click():
+            self.page.theme = ft.Theme(color_scheme_seed=color)
+            self.page.update()
+        item = ft.PopupMenuItem(content=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.COLOR_LENS_OUTLINED, color=color),
+                        ft.Text(text, color=color),
+                    ]),on_click=click)
+        return item
+
+
+
+    def _get_popup_menu_button(self):
+        button = ft.PopupMenuButton(icon=ft.Icon(ft.Icons.COLOR_LENS_OUTLINED, color=ft.Colors.PRIMARY),
+                                    items =[
+        self._get_pop_menu_item(color=ft.Colors.BLUE, text="Blue"),
+        self._get_pop_menu_item(color=ft.Colors.DEEP_PURPLE, text="Deep purple"),
+        self._get_pop_menu_item(color=ft.Colors.INDIGO, text="Indigo"),
+        self._get_pop_menu_item(color=ft.Colors.GREEN, text="Green"),
+        self._get_pop_menu_item(color=ft.Colors.YELLOW, text="Yellow"),
+        self._get_pop_menu_item(color=ft.Colors.ORANGE, text="Orange"),
+        ])
+        return button
+
+    def _change_theme_setting(self):
+        def change_theme():
+            if self.page.theme_mode == ft.ThemeMode.DARK:
+               self.page.theme_mode = ft.ThemeMode.LIGHT
+               self.change_theme.icon = ft.Icons.DARK_MODE_OUTLINED
+            elif self.page.theme_mode == ft.ThemeMode.LIGHT:
+                self.page.theme_mode = ft.ThemeMode.DARK
+                self.change_theme.icon = ft.Icons.LIGHT_MODE_OUTLINED
+
+        self.change_theme.icon = ft.Icons.LIGHT_MODE_OUTLINED if self.page.theme_mode == ft.ThemeMode.DARK else ft.Icons.DARK_MODE_OUTLINED
+        self.change_theme.on_click = change_theme
+
+    def _appbar_settings(self):
+        self.app_bar.actions = [self.change_theme, self._get_popup_menu_button()]
 
     def _drawer_settings(self):
         self.drawer.bgcolor = ft.Colors.PRIMARY_CONTAINER
@@ -107,10 +152,15 @@ class BaseView(ABC):
         else:
             bgcolor = ft.Colors.BLUE_700
 
-        self.modal_dialog.content =ft.Text(message, size=24, color=ft.Colors.ON_ERROR_CONTAINER)
+        self.modal_dialog.content = ft.Text(message, size=24, color=ft.Colors.ON_ERROR_CONTAINER)
+        self.info_dialog.content = ft.Text(message, size=24, color=ft.Colors.ON_ERROR_CONTAINER)
         self.modal_dialog.bgcolor = bgcolor
+        self.info_dialog.bgcolor = bgcolor
         try:
-            self.page.show_dialog(self.modal_dialog)
+            if level == MessageLevel.INFO:
+                self.page.show_dialog(self.info_dialog)
+            else:
+                self.page.show_dialog(self.modal_dialog)
         except RuntimeError as e:
             msg = e.args[0] if e.args else ""
             if not (isinstance(msg, str) and msg == "Dialog is already opened"):

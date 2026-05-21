@@ -1,4 +1,6 @@
-from pydantic import BaseModel, field_validator
+import uuid
+
+from pydantic import BaseModel, field_validator, Field
 from enum import Enum
 from datetime import datetime, timezone
 
@@ -9,7 +11,8 @@ class UserRole(str, Enum):
 
 
 class User(BaseModel):
-    id: int
+    id: uuid.UUID = Field(validation_alias="sub")
+    sid: uuid.UUID
     role: UserRole
     exp: datetime
 

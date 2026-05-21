@@ -13,7 +13,7 @@ from core.users.models import UserRole
 
 from UI.get_element.button import get_button
 from core.epub.reader import EpubReader
-from core.state import MessageLevel
+from core.MessageLevel import MessageLevel
 
 
 class AdminView(BaseView):
@@ -64,7 +64,7 @@ class AdminView(BaseView):
     def _app_bar_settings(self):
         self.app_bar.title = ft.Text("Админ Панель")
         self.app_bar.center_title = True
-        self.app_bar.actions = [ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.state.clear_user)]
+        self.app_bar.actions.append(ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.auth_logic.logout))
 
     def _collum1_settings(self):
         self._column.controls.append(ft.Row(controls=self._button_list))
@@ -105,6 +105,11 @@ class AdminView(BaseView):
     def _func_field(self, e):
         ic(e.control.data, e.control.value)
         self.form_data[e.control.data] = e.control.value
+        if self.book is not None and e.control.value.strip() !="":
+           self.book = self.book.model_copy(
+                update={e.control.data: e.control.value}
+            )
+
 
     def _func_but(self, e):
         actions = {
@@ -136,6 +141,10 @@ class AdminView(BaseView):
         file = files[0]
         ext = Path(file.name).suffix.lower().lstrip(".")
         data = file.bytes
+        size_mb = len(data) / (1024 * 1024)
+        if size_mb >= 500:
+            self.state.notify("Файл слишком большой", MessageLevel.WARNING)
+            raise ValueError
         ic(isinstance(data, bytes))
         match key:
             case "load_book":
@@ -169,7 +178,6 @@ class AdminView(BaseView):
         id_book = None
         try:
             id_book = await self.api.add_book(book)
-            ic(id_book)
         except UnprocessableContentError as exc:
             self.state.notify(message=f"Ошибка добавления книги: {exc}", level=MessageLevel.ERROR)
         except ConflictError as exc:
@@ -201,8 +209,17 @@ class AdminView(BaseView):
         return book, chapters
 
     def add_other_books(self):
-        book = BookCreate(**self.form_data)
-        return book, None
+            if self.form_data["title"] is None or self.form_data["title"].strip() == "":
+                self.state.notify(message="Требуется указать название", level=MessageLevel.WARNING)
+                raise ValueError("No title")
+            elif self.form_data["description"] is None or self.form_data["description"].strip() == "":
+                self.state.notify(message="Требуется указать описание", level=MessageLevel.WARNING)
+                raise ValueError("No description")
+            else:
+                book = BookCreate(**self.form_data)
+                return book, None
+
+
 
     def build_content(self) -> ft.Control:
         """

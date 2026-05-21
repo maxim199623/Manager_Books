@@ -5,14 +5,23 @@ from core.Http_Client.errors import (
     UnauthorizedError,
     ForbiddenError,
     NotFoundError,
-    ServerError, UnprocessableContentError, MethodNotAllowedError, ConflictError,
+    ServerError, UnprocessableContentError, MethodNotAllowedError, ConflictError,SessionReplacedError
 )
 
 
 
 def map_http_error(response: httpx.Response):
+    detail = None
+    try:
+        data = response.json()
+        detail = data.get("detail")
+    except Exception:
+        detail = response.text
+
     match response.status_code:
         case 401:
+            if detail == "Session replaced":
+                raise SessionReplacedError("Сессия была завершена")
             raise UnauthorizedError("Не авторизован")
         case 403:
             raise ForbiddenError("Нет доступа")

@@ -17,6 +17,9 @@ class NotFoundError(ApiError):
 class ServerError(ApiError):
     pass
 
+class SessionReplacedError(UnauthorizedError):
+    pass
+
 class UnprocessableContentError(ApiError):
     pass
 

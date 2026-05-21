@@ -1,4 +1,5 @@
 import json
+import uuid
 
 from pydantic import BaseModel , field_validator, field_serializer
 from typing import Optional, List
@@ -29,8 +30,8 @@ class ChapterCreate(BaseModel):
 
 
 class ChapterRead(BaseModel):
-    id: int
-    book_id: int
+    id: uuid.UUID
+    book_id: uuid.UUID
     chapter: int
     chapter_name: str
     description: List[str]
@@ -82,12 +83,12 @@ class ChapterPatch(BaseModel):
 
 
 class ChapterCount(BaseModel):
-    book_id: int
+    book_id: uuid.UUID
     chapters_count: int
 
 
 class ChapterReadCount(BaseModel):
-    book_id: int
+    book_id: uuid.UUID
     read_chapters: int
 
 

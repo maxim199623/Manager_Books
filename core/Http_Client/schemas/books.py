@@ -1,13 +1,20 @@
+import uuid
 from datetime import datetime
-from pydantic import BaseModel , field_validator, field_serializer
-from typing import Optional
+from pydantic import BaseModel , field_validator, field_serializer, Field, StringConstraints
+from typing import Optional, Annotated
 
 from base64 import b64encode , b64decode
+
+
+class FileData(BaseModel):
+    data: bytes
+    filename: str
+    content_type: str
 
 class BookCreate(BaseModel):
     title: str
     author: Optional[str] = None
-    description: Optional[str] = None
+    description: str
     series: Optional[str] = None
     format: Optional[str] = None
     cover: Optional[bytes] = None
@@ -24,6 +31,7 @@ class BookCreate(BaseModel):
     @classmethod
     def str_title(cls, title):
         if isinstance(title, str):
+            title = title.strip()
             return title
         if isinstance(title, (list, tuple)):
             return " / ".join(map(str, title))
@@ -31,7 +39,7 @@ class BookCreate(BaseModel):
 
 
 class BookRead(BaseModel):
-    id: int
+    id: uuid.UUID
     title: str
     author: Optional[str] = None
     description: Optional[str] = None
@@ -58,6 +66,7 @@ class BookRead(BaseModel):
 
 
 class BookUpdate(BookCreate):
-    title: str | None = None
+    title: Optional[str] = None
+    description: Optional[str] = None
 
 

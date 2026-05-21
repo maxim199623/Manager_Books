@@ -1,19 +1,14 @@
 import logging
 
-from enum import Enum
 from typing import Optional, List, Callable, Literal, Dict
 
+from core.MessageLevel import MessageLevel
 from core.Http_Client.schemas.books import BookRead
 from core.config import APISetting, Settings
 from core.users.models import User, UserRole
 
 Topic = Literal["user", "book", "message", "route"]
 logger = logging.getLogger("app")
-
-class MessageLevel(str, Enum):
-    ERROR = "error"
-    WARNING = "warning"
-    INFO = "info"
 
 
 class AppState:
@@ -51,7 +46,6 @@ class AppState:
         """Проверка роли"""
         ic()
         return ic(self.user.role if self.user else None)
-
 
     def subscribe(self, topic: Topic, callback: Callable[[], None]):
         self._subscribers[topic].append(callback)

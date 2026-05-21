@@ -1,5 +1,7 @@
 import logging
 import ssl
+import uuid
+from pathlib import Path
 
 import httpx
 from typing import List, Optional
@@ -7,7 +9,7 @@ from typing import List, Optional
 from core.Http_Client.base import map_http_error
 from core.Http_Client.schemas.base_metod import HTTPMethod
 from core.Http_Client.schemas.users import TokenResponse, UserCreate, UserRead, UserPatch
-from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate
+from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate, FileData
 from core.Http_Client.schemas.chapter import ChapterCreate, ChapterRead, ChapterCount, ChapterReadCount, ChapterPatch
 
 logger = logging.getLogger("app")
@@ -19,12 +21,13 @@ class ApiClient:
 
     def __init__(self, base_url: str):
         try:
-            ssl_context = ssl.create_default_context(cafile="core/Http_Client/cert.pem")
+            ssl_context = ssl.create_default_context(cafile="cert.pem")
         except FileNotFoundError:
-            logger.critical("Не найден файл сертификата по пути (core/Http_Client/cert.pem)")
+            logger.critical("Не найден файл сертификата по пути (cert.pem)")
             raise
         self._client = httpx.AsyncClient(base_url=base_url,verify=ssl_context, timeout=20.0)
-        self._token: Optional[str] = None
+        self.token: Optional[str] = None
+        self.base_url = base_url.rstrip("/")
 
     async def login(self, email: str, password: str) -> TokenResponse:
         resp = await self._request(method=HTTPMethod.POST,
@@ -32,8 +35,13 @@ class ApiClient:
                                    json={"email": email, "password": password},
                                    expected_status=200)
         token = TokenResponse(**resp)
-        self._token = token.access_token
+        self.token = token.access_token
         return token
+
+    async def logout(self):
+        await self._request(method=HTTPMethod.DELETE,
+                                   url="/users/logout",
+                                   expected_status=204)
 
     async def add_user(self, user: UserCreate) -> None:
         await self._request(method=HTTPMethod.POST,
@@ -47,7 +55,7 @@ class ApiClient:
                             expected_status=200)
         return [UserRead(**u) for u in resp]
 
-    async def delete_user(self, user_id: int) -> None:
+    async def delete_user(self, user_id: uuid.UUID) -> None:
         await self._request(method=HTTPMethod.DELETE,
                             url=f"/users/{user_id}",
                             expected_status=204)
@@ -82,57 +90,57 @@ class ApiClient:
                                    expected_status=200)
         return [BookRead(**b) for b in resp]
 
-    async def patch_book(self, book_id: int, book: BookUpdate) -> None:
+    async def patch_book(self, book_id: uuid.UUID, book: BookUpdate) -> None:
         await self._request(method=HTTPMethod.PATCH,
                                    url=f"/books/{book_id}",
                                    json=book.model_dump(exclude_none=True),
                                    expected_status=200)
 
 
-    async def delete_book(self, book_id: int) -> None:
+    async def delete_book(self, book_id: uuid.UUID) -> None:
         await self._request(method=HTTPMethod.DELETE,
                             url=f"/books/{book_id}",
                             expected_status=204)
 
 
-    async def add_chapters(self, book_id: int, chapters: List[ChapterCreate]) -> None:
+    async def add_chapters(self, book_id: uuid.UUID, chapters: List[ChapterCreate]) -> None:
         resp = await self._request(method=HTTPMethod.POST,
                             url=f"/books/{book_id}/chapters",
                             json=[c.model_dump() for c in chapters],
                             expected_status=201)
         return resp
 
-    async def get_chapter(self, book_id: int, chapter_num: int) -> ChapterRead:
+    async def get_chapter(self, book_id: uuid.UUID, chapter_num: int) -> ChapterRead:
         resp = await self._request(method=HTTPMethod.GET,
                                    url=f"/books/{book_id}/chapters/{chapter_num}",
                                    expected_status=200)
         return ChapterRead(**resp)
 
-    async def get_chapters_num(self, book_id: int) -> ChapterCount:
+    async def get_chapters_num(self, book_id: uuid.UUID) -> ChapterCount:
         resp = await self._request(method=HTTPMethod.GET,
                                    url=f"/books/{book_id}/chapters/count",
                                    expected_status=200)
         return ChapterCount(**resp)
 
-    async def get_count_read_chapters_in_book(self, book_id: int) -> ChapterReadCount:
+    async def get_count_read_chapters_in_book(self, book_id: uuid.UUID) -> ChapterReadCount:
         resp = await self._request(method=HTTPMethod.GET,
                                    url=f"/books/{book_id}/chapters/read/count",
                                    expected_status=200)
         return ChapterReadCount(**resp)
 
-    async def get_read_chapters_in_book(self, book_id: int) -> List[int]:
+    async def get_read_chapters_in_book(self, book_id: uuid.UUID) -> List[int]:
         resp = await self._request(method=HTTPMethod.GET,
                                    url=f"/books/chapters/read",
                                    params={"book_id":book_id},
                                    expected_status=200)
         return resp
 
-    async def delete_history_read_chapters_in_book(self, book_id: int) -> None:
+    async def delete_history_read_chapters_in_book(self, book_id: uuid.UUID) -> None:
         await self._request(method=HTTPMethod.DELETE,
                                    url=f"/books/{book_id}/history",
                                    expected_status=200)
 
-    async def patch_chapter(self, book_id: int, chapter_num: int, chapter: ChapterPatch) -> None:
+    async def patch_chapter(self, book_id: uuid.UUID, chapter_num: int, chapter: ChapterPatch) -> None:
         await self._request(method=HTTPMethod.PATCH,
                             url=f"/books/{book_id}/chapters/{chapter_num}",
                             json=chapter.model_dump(exclude_none=True),
@@ -140,16 +148,17 @@ class ApiClient:
 
 
     def _auth_headers(self) -> dict:
-        if not self._token:
+        if not self.token:
             return {}
-        return {"Authorization": f"Bearer {self._token}"}
+        return {"Authorization": f"Bearer {self.token}"}
 
     async def _request(self,
                        method: HTTPMethod,
                        url: str,
                        expected_status: int,
                        json: dict | list | None = None,
-                       params: dict | None = None):
+                       params: dict | None = None,
+                       ):
         ic()
         ic(f"Запрос {method} на {url}")
         ic(f"json {"Есть" if json is not None else "Нету" }")

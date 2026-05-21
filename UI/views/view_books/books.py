@@ -1,8 +1,10 @@
 import flet as ft
 
+from core.Http_Client.errors import SessionReplacedError
 from UI.views.BaseView import BaseView
 from UI.views.view_books.cont_book import Book_cont
 from core.users.models import UserRole
+from core.MessageLevel import MessageLevel
 
 class BooksView(BaseView):
 
@@ -49,21 +51,22 @@ class BooksView(BaseView):
         search_value = self.search.value
         search_key = self.drow.value
         ic(search_value, search_key)
-
         for card in self.cards:
            book = card.get_book()
            card.change_visible(True)
-           if search_value != "":
+           if search_value != "" and search_value is not None:
                query = search_value.strip().casefold()
                match search_key:
                     case "name":
                         title = book.title.strip().casefold()
                         card.change_visible(query in title)
                     case "author":
-                        author = book.author.strip().casefold()
+                        check = book.author is not None
+                        author = book.author.strip().casefold() if check else ""
                         card.change_visible(query in author)
                     case "series":
-                        series = book.series.strip().casefold()
+                        check = book.series is not None
+                        series = book.series.strip().casefold() if check else ""
                         card.change_visible(query in series)
                await self.search.focus()
 
@@ -71,7 +74,7 @@ class BooksView(BaseView):
     def _app_bar_settings(self):
         self.app_bar.title = ft.Text("Менеджер Книг")
         self.app_bar.center_title = True
-        self.app_bar.actions = [ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.state.clear_user)]
+        self.app_bar.actions.append(ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.auth_logic.logout))
 
 
     def _get_books(self):
@@ -79,7 +82,15 @@ class BooksView(BaseView):
         self.page.run_task(self._load_books_async)
 
     async def _load_books_async(self):
-        books = await self.api.get_books()
+        try:
+            books = await self.api.get_books()
+        except SessionReplacedError:
+            self.state.notify(message="Сессия закрыта", level=MessageLevel.WARNING)
+            
+            self.state.clear_user()
+        except Exception as exc:
+            self.state.notify(message=f"ошибка получения книг, {exc}", level=MessageLevel.WARNING)
+        books.sort(key=lambda x: x.created_at, reverse=True)
         for index, book in enumerate(books):
             self.loader.value = (index + 1) / len(books)
             card = Book_cont(page=self.page)

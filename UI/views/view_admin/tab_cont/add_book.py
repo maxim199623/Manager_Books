@@ -1,3 +1,5 @@
+import base64
+
 import flet as ft
 
 from UI.get_element.button import get_button
@@ -13,7 +15,9 @@ class Add_Book_Tab:
         self.row = ft.ResponsiveRow(spacing=20,run_spacing=20)
         self.coll1 = ft.Column(expand=True)
         self.coll2 = ft.Column(expand=True)
-        self.cover = ft.Image(src=open("UI/views/view_books/cover.png", "rb").read())
+        with open("assets/cover.png", "rb") as f:
+            default_cover_base64 = base64.b64encode(f.read()).decode("utf-8")
+        self.cover = ft.Image(src=f"data:image/png;base64,{default_cover_base64}")
         self.loader = ft.ProgressBar(bar_height = 10, border_radius=10, visible = False)
 
 
@@ -54,8 +58,10 @@ class Add_Book_Tab:
 
 
     def change_cover(self, data:bytes):
-        self.cover.src = data
-        self.cover.update()
+        if data:
+            b64 = base64.b64encode(data).decode("utf-8")
+            self.cover.src = f"data:image/png;base64,{b64}"
+            self.cover.update()
 
     def set_loading(self, value: bool):
         self.loader.visible = value
