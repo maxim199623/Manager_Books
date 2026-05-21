@@ -10,6 +10,9 @@ from core.users.models import UserRole
 from UI.get_element.text_field import get_text_field
 from markdownify import markdownify as md
 
+from bs4 import BeautifulSoup, NavigableString, Tag, Comment
+
+
 class ReadView(BaseView):
 
     route = "/read"
@@ -198,6 +201,8 @@ class ReadView(BaseView):
             new_content = self.get_chapter_description(chapter.description)
             self._pagelet.content.content = new_content
         self._pagelet.update()
+
+
 
     def get_chapter_description(self, description):
         coll = ft.Column()

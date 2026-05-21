@@ -53,40 +53,7 @@ class EpubReader:
                 cover = content
         return cover
 
-    def _normalize_epub_html(self, html: str) -> str:
-        INLINE_TAGS = {"i", "em", "b", "strong", "span"}
 
-        soup = BeautifulSoup(html, "html5lib")
-
-        # EPUB часто тащит CR как отдельный мусор
-        for node in soup.find_all(string=True):
-            text = str(node).replace("\r", "")
-            if text != str(node):
-                node.replace_with(text)
-
-        # Пробельные inline-обёртки превращаем в обычный текст
-        for tag in list(soup.find_all(INLINE_TAGS)):
-            if tag.attrs:
-                continue
-            if all(isinstance(c, NavigableString) for c in tag.contents):
-                text = tag.get_text()
-                if text and text.isspace():
-                    tag.replace_with(NavigableString(text))
-
-        # Сливаем соседние одинаковые inline-теги: <i>a</i><i> b</i> -> <i>a b</i>
-        changed = True
-        while changed:
-            changed = False
-            for tag in list(soup.find_all(INLINE_TAGS)):
-                nxt = tag.next_sibling
-                if isinstance(nxt, Tag) and nxt.name == tag.name and nxt.attrs == tag.attrs:
-                    for child in list(nxt.contents):
-                        tag.append(child.extract())
-                    nxt.decompose()
-                    changed = True
-
-        body = soup.body or soup
-        return "".join(str(x) for x in body.contents)
 
     def _get_chapter(self, href, read_book):
         """Получение текста главы"""
@@ -95,8 +62,7 @@ class EpubReader:
             print(f"Элемент с href '{href}' не найден.")
             return None
         html = item.get_body_content().decode("utf-8", errors="ignore")
-        text = self._normalize_epub_html(html)
-        return text
+        return html
 
 
     def _load_chapters(self, read_book) -> List[Chapter]:
