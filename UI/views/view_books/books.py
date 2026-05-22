@@ -6,6 +6,7 @@ from UI.views.view_books.cont_book import Book_cont
 from core.users.models import UserRole
 from core.MessageLevel import MessageLevel
 from epub.models import BookGenre
+from datetime import datetime
 
 
 class BooksView(BaseView):
@@ -18,6 +19,9 @@ class BooksView(BaseView):
 
     def __init__(self, page: ft.Page):
         super().__init__(page)
+
+        self.sort_key = self.state.books_sort_key
+        self.sort_desc = self.state.books_sort_desc
 
         self._app_bar_settings()
         self.drawer.selected_index = 1
@@ -38,14 +42,120 @@ class BooksView(BaseView):
         self.search = ft.Container(expand=True, content=self.text_search)
         self.drow = ft.Dropdown(on_select=self._change_search_mode)
 
-        self.search_row = ft.Row(controls=[self.drow, self.search])
+        self.show_only_favorites = False
+        self.favorite_filter_button = ft.IconButton()
+        self._setting_favorite_filter_button()
+
+        self.sort_button = ft.SubmenuButton(content=ft.Icon(ft.Icons.SORT, color=ft.Colors.PRIMARY))
+        self.sort_items = {}
+        self._settings_sort_button()
+
+        self.search_row = ft.Row(controls=[self.favorite_filter_button, self.sort_button, self.drow, self.search])
         self._settings_drow()
         self._settings_genre_button()
+
         self._column = ft.ResponsiveRow(spacing=10,
                         run_spacing=10,
                         controls=[self.search_row, self.loader])
         self.cards = []
         self._get_books()
+
+    def _settings_sort_button(self):
+        self.sort_button.controls.clear()
+        self.sort_items["created_at"] = self._get_sort_menu_item("created_at", "Дата добавления")
+        self.sort_items["progress"] = self._get_sort_menu_item("progress", "Прогресс чтения")
+        self.sort_items["title"] = self._get_sort_menu_item("title", "Название")
+
+        for item in self.sort_items.values():
+            self.sort_button.controls.append(item)
+
+        self._update_sort_button()
+
+    def _get_sort_menu_item(self, sort_key: str, text: str) -> ft.MenuItemButton:
+        item = ft.MenuItemButton(content=ft.Text(text))
+        item.on_click = lambda e, key=sort_key: self._toggle_sort(key)
+        return item
+
+    def _toggle_sort(self, sort_key: str):
+        if self.sort_key == sort_key:
+            self.sort_desc = not self.sort_desc
+        else:
+            self.sort_key = sort_key
+            if sort_key in ("created_at", "progress"):
+                self.sort_desc = True
+            else:
+                self.sort_desc = False
+
+        self.state.books_sort_key = self.sort_key
+        self.state.books_sort_desc = self.sort_desc
+
+        self._update_sort_button()
+        self._sort_cards()
+
+
+    def _update_sort_button(self):
+        names = {
+            "created_at": "Дата добавления",
+            "progress": "Прогресс чтения",
+            "title": "Название",
+        }
+
+        self.sort_button.tooltip = f"Сортировка: {names[self.sort_key]} ({'убыв.' if self.sort_desc else 'возр.'})"
+
+        for key, item in self.sort_items.items():
+            if key == self.sort_key:
+                item.leading = ft.Icon(
+                    ft.Icons.ARROW_DOWNWARD if self.sort_desc else ft.Icons.ARROW_UPWARD,
+                    size=18,
+                )
+            else:
+                item.leading = None
+
+            item.trailing = None
+
+    def _get_sort_value(self, card: Book_cont):
+        book = card.get_book()
+
+        match self.sort_key:
+            case "created_at":
+                return book.created_at if book.created_at is not None else datetime.min
+            case "progress":
+                return card.get_read_progress()
+            case "title":
+                return (book.title or "").strip().casefold()
+
+        return 0
+
+    def _sort_cards(self):
+        self.cards.sort(key=self._get_sort_value, reverse=self.sort_desc)
+        self._column.controls = [self.search_row, self.loader] + [card.cont for card in self.cards]
+
+        if self._column.page is not None:
+            self._column.update()
+
+    def _setting_favorite_filter_button(self):
+        self.favorite_filter_button.icon = ft.Icons.STAR_BORDER
+        self.favorite_filter_button.selected_icon = ft.Icons.STAR
+        self.favorite_filter_button.icon_color = ft.Colors.PRIMARY
+        self.favorite_filter_button.selected_icon_color = ft.Colors.ON_PRIMARY
+        self.favorite_filter_button.tooltip = "Показать только избранные"
+        self.favorite_filter_button.on_click = self._toggle_favorite_filter
+        self._update_favorite_filter_button()
+
+    def _toggle_favorite_filter(self, e):
+        self.show_only_favorites = not self.show_only_favorites
+        self._update_favorite_filter_button()
+        self.page.update()
+        self.page.run_task(self._search)
+
+
+    def _update_favorite_filter_button(self):
+        self.favorite_filter_button.selected = self.show_only_favorites
+        self.favorite_filter_button.tooltip = (
+            "Показать все книги"
+            if self.show_only_favorites
+            else "Показать только избранные"
+        )
 
     def _change_search_mode(self, e):
         if self.drow.value == "genres":
@@ -99,12 +209,15 @@ class BooksView(BaseView):
         search_key = self.drow.value
         search_value = (self.text_search.value or "").strip().casefold()
         selected_genres = {genre.casefold() for genre in self.selected_genres}
+
         ic(search_value, search_key, selected_genres)
         for card in self.cards:
             book = card.get_book()
             visible = True
 
-            if search_key == "genres":
+            if self.show_only_favorites and not bool(getattr(book, "is_favorite", False)):
+                visible = False
+            elif search_key == "genres":
                 if selected_genres:
                     book_genres = {
                         genre.strip().casefold()
@@ -123,8 +236,9 @@ class BooksView(BaseView):
                         visible = search_value in (book.series or "").strip().casefold()
                     case "description":
                         visible = search_value in (book.description or "").strip().casefold()
-
             card.change_visible(visible)
+        self._sort_cards()
+
 
 
     def _app_bar_settings(self):
@@ -137,6 +251,13 @@ class BooksView(BaseView):
         """Запуск async загрузки"""
         self.page.run_task(self._load_books_async)
 
+    def _on_favorite_change(self):
+        self.page.run_task(self._search)
+
+    def _on_progress_change(self):
+        if self.sort_key == "progress":
+            self._sort_cards()
+
     async def _load_books_async(self):
         try:
             books = await self.api.get_books()
@@ -146,10 +267,11 @@ class BooksView(BaseView):
             self.state.clear_user()
         except Exception as exc:
             self.state.notify(message=f"ошибка получения книг, {exc}", level=MessageLevel.WARNING)
-        books.sort(key=lambda x: x.created_at, reverse=True)
         for index, book in enumerate(books):
             self.loader.value = (index + 1) / len(books)
             card = Book_cont(page=self.page)
+            card.on_favorite_change = self._on_favorite_change
+            card.on_progress_change = self._on_progress_change
             self.cards.append(card)
             cont_book = card.get_cont(
                 title=book.title, description=book.description, index=book.id, cover=book.cover, data = book

@@ -1,5 +1,5 @@
 import base64
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 
 import flet as ft
 
@@ -27,6 +27,54 @@ class Book_cont:
         self.book = None
         self.is_build = False
         self.is_chapers= False
+        self.favorite_button = ft.IconButton()
+        self.on_favorite_change = None
+        self.read_progress = 0.0
+        self.on_progress_change = None
+
+    def get_read_progress(self):
+        return self.read_progress
+
+
+    def _is_favorite(self):
+        return bool(getattr(self.book, "is_favorite", False))
+
+    def _setting_favorite_button(self):
+        self.favorite_button.icon =ft.Icons.STAR_BORDER
+        self.favorite_button.selected_icon = ft.Icons.STAR
+        self.favorite_button.icon_color = ft.Colors.PRIMARY
+        self.favorite_button.selected_icon_color = ft.Colors.ON_PRIMARY
+        self.favorite_button.tooltip="Убрать из избранного" if self._is_favorite() else "Добавить в избранное"
+        self.favorite_button.on_click=self._favorite_click_async
+
+    async def _favorite_click_async(self,e):
+        try:
+            if self._is_favorite():
+                await self.api.unfavorite_book(self.book.id)
+                self.book.is_favorite = False
+                self.state.notify(message="Книга удалена из избранного", level=MessageLevel.INFO)
+            else:
+                await self.api.favorite_book(self.book.id)
+                self.book.is_favorite = True
+                self.state.notify(message="Книга добавлена в избранное", level=MessageLevel.INFO)
+
+            self.cont.data["book"] = self.book
+            self._update_favorite_buttons()
+            if self.on_favorite_change is not None:
+                self.on_favorite_change()
+
+        except Exception as exc:
+            self.state.notify(message=f"ошибка изменения избранного: {exc}", level=MessageLevel.ERROR)
+
+    def _update_favorite_buttons(self):
+        is_favorite = self._is_favorite()
+        tooltip = "Убрать из избранного" if is_favorite else "Добавить в избранное"
+
+        if self.favorite_button is not None:
+            self.favorite_button.selected = is_favorite
+            self.favorite_button.tooltip = tooltip
+            if self.is_build:
+                self.favorite_button.update()
 
     def _settings_dialog_del(self, message:str , _id: int):
         self.dialog_del.title = ft.Text("Удаление")
@@ -94,7 +142,10 @@ class Book_cont:
         all_row = ft.Row(expand=True)
         data_column = ft.Column(alignment = ft.MainAxisAlignment.CENTER, expand=True)
 
-        image = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.CONTAIN)
+        image_cover = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.CONTAIN)
+        self._setting_favorite_button()
+        self._update_favorite_buttons()
+        image = ft.Container(height=200, content=ft.Stack(controls=[image_cover, self.favorite_button]))
         cont_title = self._get_cont_title(title)
         cont_description = self._get_cont_description(description)
         cont_button = self._get_cont_button(index)
@@ -115,19 +166,29 @@ class Book_cont:
             if full.chapters_count == 0:
                 progressbar.visible = False
                 self.is_chapers = False
+                self.read_progress = 0.0
             else:
-                progressbar.value = read.read_chapters / full.chapters_count
+                self.read_progress = read.read_chapters / full.chapters_count
+                progressbar.value = self.read_progress
                 self.is_chapers = True
         except Exception as exc:
             self.state.notify(message=f"ошибка получения истории: {exc}", level=MessageLevel.ERROR)
+
+        if self.on_progress_change is not None:
+            self.on_progress_change()
+
         if self.is_build:
             progressbar.update()
 
-    def _get_min_elements(self, cover, title, description, index):
+
+    def _get_min_elements(self, cover, title,description, index):
         if cover is None:
             cover = open("cover.png", "rb").read()
         all_row = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,  tight=True,)
-        image = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.COVER)
+        image_cover = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.CONTAIN)
+        self._setting_favorite_button()
+        self._update_favorite_buttons()
+        image = ft.Container(height=200, content=ft.Stack(controls=[image_cover, self.favorite_button]))
         des = ft.Container(alignment=ft.Alignment.BOTTOM_LEFT,padding=12)
         des.content = ft.Column(tight=True, spacing=4, controls=[
             ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.PRIMARY, overflow=ft.TextOverflow.ELLIPSIS)

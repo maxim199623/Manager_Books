@@ -28,6 +28,9 @@ class AppState:
 
         self.current_route: str = "/login"
 
+        self.books_sort_key: str = "created_at"
+        self.books_sort_desc: bool = True
+
         self._subscribers: Dict[Topic, List[Callable[[], None]]] = {
             "user": [],
             "book": [],

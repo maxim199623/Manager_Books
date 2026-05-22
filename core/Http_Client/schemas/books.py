@@ -45,6 +45,8 @@ class BookRead(BaseModel):
     format: Optional[str] = None
     cover: Optional[bytes] = None
     file: Optional[bytes] = None
+    is_favorite: Optional[bool] = False
+
     created_at: datetime
 
     # ---------- вход: base64 → bytes ----------

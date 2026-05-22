@@ -47,8 +47,7 @@ class Add_Book_Tab:
 
     def _setting_button_genres(self):
         for genre in BookGenre:
-            if genre != BookGenre.FAVORITES:
-                self.button_genres.controls.append(self._get_popup_menu_item(genre.value))
+            self.button_genres.controls.append(self._get_popup_menu_item(genre.value))
 
 
 

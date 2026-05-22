@@ -74,6 +74,20 @@ class ApiClient:
 
        return resp
 
+    async def favorite_book(self, book_id: uuid.UUID) -> None:
+       resp = await self._request(method=HTTPMethod.POST,
+                            url=f"/books/{book_id}/favorite",
+                            expected_status=204)
+
+       return resp
+
+    async def unfavorite_book(self, book_id: uuid.UUID) -> None:
+       resp = await self._request(method=HTTPMethod.DELETE,
+                            url=f"/books/{book_id}/favorite",
+                            expected_status=204)
+
+       return resp
+
     async def get_books(self,
                         author: Optional[str] = None,
                         series: Optional[str] = None) -> List[BookRead]:

@@ -18,7 +18,6 @@ class Book(BaseModel):
     file: Optional[bytes]
 
 class BookGenre(str, Enum):
-    FAVORITES = "Избранное"
     FANTASY = "Фэнтези"
     SCIENCE_FICTION = "Научная фантастика"
     DETECTIVE = "Детектив"
