@@ -2,7 +2,7 @@ import flet as ft
 
 def get_text_field(*, label: str, field_name: str = None, width: int = 30000, password: bool = False,
                    multiline: bool = False,input_filter=None,
-                    func_field) -> ft.TextField:
+                    func_field = None) -> ft.TextField:
 
     return ft.TextField(
         label=label,

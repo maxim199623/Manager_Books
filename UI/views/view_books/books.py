@@ -5,6 +5,8 @@ from UI.views.BaseView import BaseView
 from UI.views.view_books.cont_book import Book_cont
 from core.users.models import UserRole
 from core.MessageLevel import MessageLevel
+from epub.models import BookGenre
+
 
 class BooksView(BaseView):
 
@@ -28,47 +30,101 @@ class BooksView(BaseView):
                 width = self.page.width
                 )
         self.loader = ft.ProgressBar(bar_height = 10, border_radius=10)
-        self.search = ft.SearchBar(bar_hint_text="Поиск...", bar_bgcolor = ft.Colors.PRIMARY_CONTAINER,
+        self.text_search  = ft.SearchBar(bar_hint_text="Поиск...", bar_bgcolor = ft.Colors.PRIMARY_CONTAINER,
                                    on_change=self._search, autofocus=True)
-        self.drow = ft.Dropdown()
+        self.genre_field = ft.TextField(hint_text="",read_only=True,expand=True,border_radius=15)
+        self.genre_button = ft.SubmenuButton(content=ft.Icon(ft.Icons.ARROW_DROP_DOWN), on_close=self._apply_genre_filter,)
+        self.selected_genres: set[str] = set()
+        self.search = ft.Container(expand=True, content=self.text_search)
+        self.drow = ft.Dropdown(on_select=self._change_search_mode)
 
-        self.search_row = ft.Row(controls=[self.drow,ft.Container(expand=True,content= self.search)])
+        self.search_row = ft.Row(controls=[self.drow, self.search])
         self._settings_drow()
+        self._settings_genre_button()
         self._column = ft.ResponsiveRow(spacing=10,
                         run_spacing=10,
                         controls=[self.search_row, self.loader])
-
         self.cards = []
         self._get_books()
+
+    def _change_search_mode(self, e):
+        if self.drow.value == "genres":
+            self.search.content = ft.Row(
+                controls=[self.genre_field, self.genre_button],
+                tight=True,
+            )
+        else:
+            self.search.content = self.text_search
+
+        self.search.update()
+        self.page.run_task(self._search)
+
+    def _get_genre_menu_item(self, genre: str) -> ft.MenuItemButton:
+        item = ft.MenuItemButton(
+            content=ft.Text(genre),
+            close_on_click=False,
+        )
+        item.on_click = lambda e, g=genre, i=item: self._toggle_genre(g, i)
+        return item
+
+    def _settings_genre_button(self):
+        self.genre_button.controls.clear()
+        for genre in BookGenre:
+            self.genre_button.controls.append(self._get_genre_menu_item(genre.value))
+
+    def _toggle_genre(self, genre: str, item: ft.MenuItemButton):
+        if genre in self.selected_genres:
+            self.selected_genres.remove(genre)
+            item.leading = None
+        else:
+            self.selected_genres.add(genre)
+            item.leading = ft.Icon(ft.Icons.CHECK, size=18)
+
+        self.genre_field.value = ", ".join(sorted(self.selected_genres))
+        self.genre_field.update()
+        item.update()
+
+    def _apply_genre_filter(self, e):
+        self.page.run_task(self._search)
 
     def _settings_drow(self):
         self.drow.value = "name"
         self.drow.options.append(ft.DropdownOption(key="name", text="Название"))
+        self.drow.options.append(ft.DropdownOption(key="description", text="Описание"))
         self.drow.options.append(ft.DropdownOption(key="author", text="Автор"))
         self.drow.options.append(ft.DropdownOption(key="series", text="Серия"))
+        self.drow.options.append(ft.DropdownOption(key="genres", text="Жанры"))
 
     async def _search(self):
-        search_value = self.search.value
         search_key = self.drow.value
-        ic(search_value, search_key)
+        search_value = (self.text_search.value or "").strip().casefold()
+        selected_genres = {genre.casefold() for genre in self.selected_genres}
+        ic(search_value, search_key, selected_genres)
         for card in self.cards:
-           book = card.get_book()
-           card.change_visible(True)
-           if search_value != "" and search_value is not None:
-               query = search_value.strip().casefold()
-               match search_key:
+            book = card.get_book()
+            visible = True
+
+            if search_key == "genres":
+                if selected_genres:
+                    book_genres = {
+                        genre.strip().casefold()
+                        for genre in (book.genres or "").split(",")
+                        if genre.strip()
+                    }
+                    visible = selected_genres.issubset(book_genres)
+            elif search_value:
+                match search_key:
                     case "name":
-                        title = book.title.strip().casefold()
-                        card.change_visible(query in title)
+                        title_source = book.title if isinstance(book.title, str) else " / ".join(book.title)
+                        visible = search_value in title_source.strip().casefold()
                     case "author":
-                        check = book.author is not None
-                        author = book.author.strip().casefold() if check else ""
-                        card.change_visible(query in author)
+                        visible = search_value in (book.author or "").strip().casefold()
                     case "series":
-                        check = book.series is not None
-                        series = book.series.strip().casefold() if check else ""
-                        card.change_visible(query in series)
-               await self.search.focus()
+                        visible = search_value in (book.series or "").strip().casefold()
+                    case "description":
+                        visible = search_value in (book.description or "").strip().casefold()
+
+            card.change_visible(visible)
 
 
     def _app_bar_settings(self):

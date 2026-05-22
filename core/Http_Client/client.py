@@ -1,7 +1,6 @@
 import logging
 import ssl
 import uuid
-from pathlib import Path
 
 import httpx
 from typing import List, Optional
@@ -9,7 +8,7 @@ from typing import List, Optional
 from core.Http_Client.base import map_http_error
 from core.Http_Client.schemas.base_metod import HTTPMethod
 from core.Http_Client.schemas.users import TokenResponse, UserCreate, UserRead, UserPatch
-from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate, FileData
+from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate
 from core.Http_Client.schemas.chapter import ChapterCreate, ChapterRead, ChapterCount, ChapterReadCount, ChapterPatch
 
 logger = logging.getLogger("app")

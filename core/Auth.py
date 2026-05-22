@@ -3,7 +3,7 @@ from httpx import ConnectError
 from core.Http_Client.websocket_client import WebSocketClient
 from core.MessageLevel import MessageLevel
 from core.Http_Client.client import ApiClient
-from core.Http_Client.errors import ApiError
+from core.Http_Client.errors import ApiError, UnauthorizedError
 from core.state import  AppState
 from core.users.models import User
 import jwt
@@ -28,12 +28,16 @@ class AuthLogic:
             self.state.set_user(user)
 
 
-        except ApiError as exc:
-            self.state.notify(message=str(exc), level=MessageLevel.ERROR)
+        except UnauthorizedError as exc:
+            if email != "default@default.ru":
+                self.state.notify(message=str(exc), level=MessageLevel.ERROR)
 
         except ConnectError as exc:
             ic(exc)
             self.state.notify(message=f"Ошибка подключения к серверу", level=MessageLevel.ERROR)
+
+        except ApiError as exc:
+            self.state.notify(message=str(exc), level=MessageLevel.ERROR)
 
         except Exception as exc:
             ic(exc)

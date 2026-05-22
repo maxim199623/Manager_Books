@@ -55,6 +55,7 @@ class AdminView(BaseView):
             "author": "",
             "description": "",
             "series": "",
+            "genres":"",
             "format": "",
             "file": None,
             "cover": None,
@@ -197,6 +198,7 @@ class AdminView(BaseView):
                           description=self.book.description,
                           author=self.book.author,
                           format=self.book.format,
+                          genres=self.form_data["genres"],
                           series=self.book.series,
                           cover=self.book.cover,
                           file=self.book.file)

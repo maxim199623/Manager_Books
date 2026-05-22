@@ -3,7 +3,6 @@ from typing import Iterable
 import flet as ft
 from abc import ABC, abstractmethod
 
-from core.Http_Client.websocket_client import WebSocketClient
 from core.Auth import AuthLogic
 from core.Http_Client.client import ApiClient
 from core.state import AppState, MessageLevel

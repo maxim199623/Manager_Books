@@ -1,21 +1,17 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel , field_validator, field_serializer, Field, StringConstraints
-from typing import Optional, Annotated
+from pydantic import BaseModel , field_validator, field_serializer
+from typing import Optional
 
 from base64 import b64encode , b64decode
 
-
-class FileData(BaseModel):
-    data: bytes
-    filename: str
-    content_type: str
 
 class BookCreate(BaseModel):
     title: str
     author: Optional[str] = None
     description: str
     series: Optional[str] = None
+    genres: Optional[str] = None
     format: Optional[str] = None
     cover: Optional[bytes] = None
     file: Optional[bytes] = None
@@ -38,12 +34,14 @@ class BookCreate(BaseModel):
         return str(title)
 
 
+
 class BookRead(BaseModel):
     id: uuid.UUID
     title: str
     author: Optional[str] = None
     description: Optional[str] = None
     series: Optional[str] = None
+    genres: Optional[str] = None
     format: Optional[str] = None
     cover: Optional[bytes] = None
     file: Optional[bytes] = None
@@ -63,6 +61,7 @@ class BookRead(BaseModel):
             except Exception as e:
                 raise ValueError("Invalid base64 data") from e
         raise TypeError("Expected base64 string or bytes")
+
 
 
 class BookUpdate(BookCreate):

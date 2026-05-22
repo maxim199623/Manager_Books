@@ -4,6 +4,7 @@ import flet as ft
 
 from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
+from epub.models import BookGenre
 
 
 class Add_Book_Tab:
@@ -19,6 +20,36 @@ class Add_Book_Tab:
             default_cover_base64 = base64.b64encode(f.read()).decode("utf-8")
         self.cover = ft.Image(src=f"data:image/png;base64,{default_cover_base64}")
         self.loader = ft.ProgressBar(bar_height = 10, border_radius=10, visible = False)
+        self.genres = get_text_field(label="Жанры", field_name="genres", multiline=True)
+        self.genres.read_only = True
+        self.genres.expand = True
+        self.button_genres = ft.SubmenuButton(content=ft.Icon(ft.Icons.ADD))
+        self.selected_genres = set()
+
+
+    def _selected_genres(self, genre, item, e):
+        if genre in self.selected_genres:
+            self.selected_genres.remove(genre)
+            item.checked = False
+            item.leading = None
+        else:
+            self.selected_genres.add(genre)
+            item.leading = ft.Icon(ft.Icons.CHECK, size=18)
+        self.genres.value=', '.join(self.selected_genres)
+        self.genres.update()
+        self.button_genres.update()
+
+
+    def _get_popup_menu_item(self, genre):
+        item = ft.MenuItemButton(genre, close_on_click=False)
+        item.on_click = lambda e, g=genre, i=item: self._selected_genres(g, i, e)
+        return item
+
+    def _setting_button_genres(self):
+        for genre in BookGenre:
+            if genre != BookGenre.FAVORITES:
+                self.button_genres.controls.append(self._get_popup_menu_item(genre.value))
+
 
 
     def _setting_coll1(self, func_field, func_but):
@@ -33,6 +64,11 @@ class Add_Book_Tab:
         self.coll1.controls.append(get_text_field(label="Серия", func_field=func_field, field_name="series"))
         self.coll1.controls.append(get_text_field(label="Формат", func_field=func_field, field_name="format"))
         self.coll1.controls.append(get_text_field(label="Описание", func_field=func_field, field_name="description", multiline=True))
+        self.genres.on_selection_change = func_field
+
+        self._setting_button_genres()
+
+        self.coll1.controls.append(ft.Row(controls=[self.genres, self.button_genres], expand=False,tight=True,))
 
         self.coll1.controls.append(get_button(text="Загрузить файл книги", func_but=func_but, button_name="load_book", width=90000))
         self.coll1.controls.append(get_button(text="Загрузить файл изображения", func_but=func_but, button_name="cover", width=90000))
@@ -71,11 +107,13 @@ class Add_Book_Tab:
             c.update()
 
     def set_filed(self, book):
-        targets = {"title", "author", "series", "format", "description"}
+        ic()
+        targets = {"title", "author", "series", "genres", "format", "description"}
         mapping = {
             "title": lambda b: ", ".join(b.title),
             "author": lambda b: b.author,
             "series": lambda b: b.series,
+            "genres": lambda b: b.genres,
             "format": lambda b: b.format,
             "description": lambda b: b.description,
         }

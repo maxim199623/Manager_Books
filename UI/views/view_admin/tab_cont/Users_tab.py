@@ -91,7 +91,6 @@ class Users_Tab:
 
 
     def _settings_table(self):
-        self.table.columns.append(ft.DataColumn(label=ft.Text("id", size=25)))
         self.table.columns.append(ft.DataColumn(label=ft.Text("Email", size=25)))
         self.table.columns.append(ft.DataColumn(label=ft.Text("Role", size=25)))
         self.table.columns.append(ft.DataColumn(label=ft.Text("created_at", size=25)))
@@ -105,7 +104,6 @@ class Users_Tab:
         _list_con.border_radius=10
 
         _list_col = ft.Column(tight=True,spacing=4)
-        _list_col.controls.append(ft.Text(f"ID: {user.id}"))
         _list_col.controls.append(ft.Text(f"Email: {user.email}"))
         _list_col.controls.append(ft.Text(f"Role: {user.role}"))
         _list_col.controls.append(ft.Text(str(user.created_at)))
@@ -145,12 +143,11 @@ class Users_Tab:
 
     def add_row(self, user: UserRead):
         row = ft.DataRow(cells=[
-            ft.DataCell(ft.Text(str(user.id), size=25)),
             ft.DataCell(ft.Text(str(user.email), size=25)),
             ft.DataCell(ft.Text(user.role, size=25)),
             ft.DataCell(ft.Text(str(user.created_at), size=25)),
-            ft.DataCell(ft.Row([get_button(text="", icon=ft.Icons.PERSON_ADD_ALT, func_but=self._func_but, button_name={"id": user.id, "button_name":"change_user"}),
-                                get_button(text="", icon=ft.Icons.DELETE_FOREVER_OUTLINED, func_but=self._func_but, button_name={"id": user.id, "button_name":"del_user"})]))
+            ft.DataCell(ft.Row([get_button(text="", icon=ft.Icons.PERSON_ADD_ALT, func_but=self._func_but, button_name={"id": user.id,"email": user.email, "button_name":"change_user"}),
+                                get_button(text="", icon=ft.Icons.DELETE_FOREVER_OUTLINED, func_but=self._func_but, button_name={"id": user.id,"email": user.email, "button_name":"del_user"})]))
         ])
 
         self.table.rows.append(row)
@@ -161,7 +158,6 @@ class Users_Tab:
 
     def _add_new_row(self):
         row = ft.DataRow(cells=[
-            ft.DataCell(ft.Text("", size=25)),
             ft.DataCell(get_text_field(label="email", func_field=self._func_field, field_name="email", width=250)),
             ft.DataCell(ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120,options=[
                 ft.DropdownOption(key=UserRole.USER, text=UserRole.USER),
@@ -207,7 +203,7 @@ class Users_Tab:
                 self.page.run_task(self._add_user)
             case "change_user":
                 self.new_user = dict.fromkeys(self.new_user, None)
-                self._settings_dialog_change_user(message=f"Изменить пользователя {e.control.data["id"]}", user_id=e.control.data["id"])
+                self._settings_dialog_change_user(message=f"Изменить пользователя {e.control.data["email"]}", user_id=e.control.data["id"])
                 self.page.show_dialog(self.dialog_change_user)
             case "change_yes":
                     self.page.pop_dialog()
@@ -215,7 +211,7 @@ class Users_Tab:
             case "change_not":
                     self.page.pop_dialog()
             case "del_user":
-                self._settings_dialog_del(message=f"Удалить пользователя {e.control.data["id"]}", user_id=e.control.data["id"])
+                self._settings_dialog_del(message=f"Удалить пользователя {e.control.data["email"]}", user_id=e.control.data["id"])
                 self.page.show_dialog(self.dialog_del)
             case "del_yes":
                 self.page.pop_dialog()
