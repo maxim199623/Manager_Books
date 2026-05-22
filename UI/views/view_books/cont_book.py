@@ -28,6 +28,7 @@ class Book_cont:
         self.is_build = False
         self.is_chapers= False
         self.favorite_button = ft.IconButton()
+        self.favorite_button_min=ft.IconButton()
         self.on_favorite_change = None
         self.read_progress = 0.0
         self.on_progress_change = None
@@ -39,13 +40,13 @@ class Book_cont:
     def _is_favorite(self):
         return bool(getattr(self.book, "is_favorite", False))
 
-    def _setting_favorite_button(self):
-        self.favorite_button.icon =ft.Icons.STAR_BORDER
-        self.favorite_button.selected_icon = ft.Icons.STAR
-        self.favorite_button.icon_color = ft.Colors.PRIMARY
-        self.favorite_button.selected_icon_color = ft.Colors.ON_PRIMARY
-        self.favorite_button.tooltip="Убрать из избранного" if self._is_favorite() else "Добавить в избранное"
-        self.favorite_button.on_click=self._favorite_click_async
+    def _setting_favorite_button(self, button):
+        button.icon =ft.Icons.STAR_BORDER
+        button.selected_icon = ft.Icons.STAR
+        button.icon_color = ft.Colors.PRIMARY
+        button.selected_icon_color = ft.Colors.ON_PRIMARY
+        button.tooltip="Убрать из избранного" if self._is_favorite() else "Добавить в избранное"
+        button.on_click=self._favorite_click_async
 
     async def _favorite_click_async(self,e):
         try:
@@ -70,11 +71,12 @@ class Book_cont:
         is_favorite = self._is_favorite()
         tooltip = "Убрать из избранного" if is_favorite else "Добавить в избранное"
 
-        if self.favorite_button is not None:
-            self.favorite_button.selected = is_favorite
-            self.favorite_button.tooltip = tooltip
-            if self.is_build:
-                self.favorite_button.update()
+        for button in (self.favorite_button, self.favorite_button_min):
+            if button is not None:
+                button.selected = is_favorite
+                button.tooltip = tooltip
+                if self.is_build and button.page is not None:
+                    button.update()
 
     def _settings_dialog_del(self, message:str , _id: int):
         self.dialog_del.title = ft.Text("Удаление")
@@ -143,7 +145,7 @@ class Book_cont:
         data_column = ft.Column(alignment = ft.MainAxisAlignment.CENTER, expand=True)
 
         image_cover = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.CONTAIN)
-        self._setting_favorite_button()
+        self._setting_favorite_button(self.favorite_button)
         self._update_favorite_buttons()
         image = ft.Container(height=200, content=ft.Stack(controls=[image_cover, self.favorite_button]))
         cont_title = self._get_cont_title(title)
@@ -186,9 +188,9 @@ class Book_cont:
             cover = open("cover.png", "rb").read()
         all_row = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,  tight=True,)
         image_cover = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.CONTAIN)
-        self._setting_favorite_button()
+        self._setting_favorite_button(self.favorite_button_min)
         self._update_favorite_buttons()
-        image = ft.Container(height=200, content=ft.Stack(controls=[image_cover, self.favorite_button]))
+        image = ft.Container(height=200, content=ft.Stack(controls=[image_cover, self.favorite_button_min]))
         des = ft.Container(alignment=ft.Alignment.BOTTOM_LEFT,padding=12)
         des.content = ft.Column(tight=True, spacing=4, controls=[
             ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.PRIMARY, overflow=ft.TextOverflow.ELLIPSIS)
