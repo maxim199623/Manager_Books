@@ -1,11 +1,9 @@
 import flet as ft
 
-from core.Http_Client.errors import SessionReplacedError
 from UI.views.BaseView import BaseView
 from UI.views.view_books.cont_book import Book_cont
 from core.users.models import UserRole
-from core.MessageLevel import MessageLevel
-from epub.models import BookGenre
+from core.epub.models import BookGenre
 from datetime import datetime
 
 
