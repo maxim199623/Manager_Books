@@ -1,14 +1,13 @@
 import json
 import logging
 import ssl
-from pathlib import Path
 
 import websockets
 from websockets.exceptions import ConnectionClosed
 
 from core.MessageLevel import MessageLevel
 
-logger = logging.getLogger("websocket")
+logger = logging.getLogger("app.ws")
 
 class WebSocketClient:
     def __init__(self, page, state):
@@ -19,37 +18,34 @@ class WebSocketClient:
 
 
     async def connect(self, token: str, base_url: str):
-        ic()
         if self._task and not self._task.done():
-            ic()
+            logger.debug("Skipping duplicate WebSocket connect")
             return
 
         cert_path = "cert.pem"
         ssl_context = ssl.create_default_context(cafile=str(cert_path))
         ws_base = base_url.replace("https://", "wss://")
         url = f"{ws_base}/ws/notifications?token={token}"
-        ic(url)
         self.ws = await websockets.connect(url, ssl=ssl_context)
         self._task = self.page.run_task(self._listen)
-        logger.info("WebSocket соединение открыто")
+        logger.info("WebSocket connected")
 
     async def _listen(self):
-        ic()
         try:
             async for message in self.ws:
                 data = json.loads(message)
-                ic(data)
                 await self._handle_message(data)
         except ConnectionClosed:
-            logger.info("WebSocket соединение закрыто")
+            logger.info("WebSocket connection closed")
         except Exception:
-            logger.exception("Ошибка в WebSocket listener")
+            logger.exception("WebSocket listener failed")
 
     async def _handle_message(self, data: dict):
-        ic(data)
         msg_type = data.get("type")
+        logger.debug("WebSocket message received", extra={"message_type": msg_type})
 
         if msg_type == "re_login" and self.state:
+            logger.warning("Session replaced event received")
             self.state.clear_user()
             self.state.notify(
                 data.get("message", "Сессия завершена: вход выполнен на другом устройстве."),

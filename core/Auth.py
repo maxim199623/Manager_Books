@@ -1,11 +1,15 @@
+import logging
+
+import jwt
 from httpx import ConnectError
 
-from core.MessageLevel import MessageLevel
 from core.Http_Client.client import ApiClient
-from core.Http_Client.errors import ApiError, UnauthorizedError, UnprocessableContentError
-from core.state import  AppState
+from core.Http_Client.errors import UnauthorizedError, UnprocessableContentError
+from core.MessageLevel import MessageLevel
+from core.state import AppState
 from core.users.models import User
-import jwt
+
+logger = logging.getLogger("app.auth")
 
 class AuthLogic:
     """
@@ -21,27 +25,32 @@ class AuthLogic:
             data = await self.api.login(email, password)
             payload = jwt.decode(data.access_token, options={"verify_signature": False})
             user = User.model_validate(payload)
-            if ic(self.ws):
-                ic()
+            if self.ws:
                 await self.ws.connect(data.access_token, self.api.base_url)
             self.state.set_user(user)
-
-
-        except UnauthorizedError as exc:
+            logger.info("Login succeeded", extra={"user_id": str(user.id)})
+        except UnauthorizedError:
+            logger.warning("Login rejected", extra={"email": email})
             if email != "default@default.ru":
-                self.state.notify(message=str("Неверный e-mail или пароль."), level=MessageLevel.ERROR)
-
-        except ConnectError as exc:
-            ic(exc)
-            self.state.notify(message=f"Не удалось подключиться к серверу. Проверьте интернет и повторите попытку.", level=MessageLevel.ERROR)
-
-        except UnprocessableContentError as exc:
-            ic(exc)
-            self.state.notify(message=f"Неверный e-mail или пароль.", level=MessageLevel.ERROR)
-
-        except Exception as exc:
-            ic(exc)
-            self.state.notify(message=f"Не удалось выполнить вход. Повторите попытку позже", level=MessageLevel.ERROR)
+                self.state.notify("Неверный e-mail или пароль.", level=MessageLevel.ERROR)
+        except ConnectError:
+            logger.warning("Login failed: server unavailable", extra={"email": email})
+            self.state.notify(
+                "Не удалось подключиться к серверу. Проверьте интернет и повторите попытку.",
+                level=MessageLevel.ERROR,
+            )
+        except UnprocessableContentError:
+            logger.warning(
+                "Login failed: invalid credentials payload",
+                extra={"email": email},
+            )
+            self.state.notify("Неверный e-mail или пароль.", level=MessageLevel.ERROR)
+        except Exception:
+            logger.exception("Unexpected login failure", extra={"email": email})
+            self.state.notify(
+                "Не удалось выполнить вход. Повторите попытку позже",
+                level=MessageLevel.ERROR,
+            )
 
     async def logout(self):
         if self.ws:

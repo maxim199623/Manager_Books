@@ -38,29 +38,57 @@
     },
     "loggers": {
         "app": {
-            "level": "DEBUG",
+            "level": "INFO",
             "handlers": [
                 "app_file",
                 "console"
             ],
             "propagate": false
         },
+        "app.api": {
+            "level": "INFO",
+            "handlers": [
+                "app_file"
+            ],
+            "propagate": false
+        },
+        "app.auth": {
+            "level": "INFO",
+            "handlers": [
+                "app_file"
+            ],
+            "propagate": false
+        },
+        "app.ws": {
+            "level": "INFO",
+            "handlers": [
+                "app_file"
+            ],
+            "propagate": false
+        },
+        "app.epub": {
+            "level": "INFO",
+            "handlers": [
+                "app_file"
+            ],
+            "propagate": false
+        },
         "httpx": {
-            "level": "DEBUG",
+            "level": "WARNING",
             "handlers": [
                 "http_file"
             ],
             "propagate": false
         },
         "flet": {
-            "level": "DEBUG",
+            "level": "WARNING",
             "handlers": [
                 "flet_file"
             ],
             "propagate": false
         },
         "httpcore": {
-            "level": "DEBUG",
+            "level": "WARNING",
             "handlers": [
                 "http_file"
             ],
