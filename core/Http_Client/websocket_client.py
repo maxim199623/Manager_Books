@@ -19,7 +19,7 @@ class WebSocketClient:
 
     async def connect(self, token: str, base_url: str):
         if self._task and not self._task.done():
-            logger.debug("Skipping duplicate WebSocket connect")
+            logger.debug("Повторное подключение WebSocket пропущено")
             return
 
         cert_path = "cert.pem"
@@ -28,7 +28,7 @@ class WebSocketClient:
         url = f"{ws_base}/ws/notifications?token={token}"
         self.ws = await websockets.connect(url, ssl=ssl_context)
         self._task = self.page.run_task(self._listen)
-        logger.info("WebSocket connected")
+        logger.info("WebSocket подключён")
 
     async def _listen(self):
         try:
@@ -36,16 +36,16 @@ class WebSocketClient:
                 data = json.loads(message)
                 await self._handle_message(data)
         except ConnectionClosed:
-            logger.info("WebSocket connection closed")
+            logger.info("Соединение WebSocket закрыто")
         except Exception:
-            logger.exception("WebSocket listener failed")
+            logger.exception("Ошибка в обработчике WebSocket")
 
     async def _handle_message(self, data: dict):
         msg_type = data.get("type")
-        logger.debug("WebSocket message received", extra={"message_type": msg_type})
+        logger.debug("Получено сообщение WebSocket", extra={"message_type": msg_type})
 
         if msg_type == "re_login" and self.state:
-            logger.warning("Session replaced event received")
+            logger.warning("Получено событие завершения сессии")
             self.state.clear_user()
             self.state.notify(
                 data.get("message", "Сессия завершена: вход выполнен на другом устройстве."),

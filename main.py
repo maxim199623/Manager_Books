@@ -27,7 +27,7 @@ def load_fonts(page: ft.Page, fonts_dir="assets/fonts"):
 
 def apply_logger(debug):
     setup_logging(debug=debug)
-    logger.info("Logging configured", extra={"debug_mode": debug})
+    logger.info("Логирование настроено", extra={"debug_mode": debug})
 
 def ui(page: ft.Page):
     page.title = "Book Manager"

@@ -28,25 +28,28 @@ class AuthLogic:
             if self.ws:
                 await self.ws.connect(data.access_token, self.api.base_url)
             self.state.set_user(user)
-            logger.info("Login succeeded", extra={"user_id": str(user.id)})
+            logger.info("Вход выполнен успешно", extra={"user_id": str(user.id)})
         except UnauthorizedError:
-            logger.warning("Login rejected", extra={"email": email})
+            logger.warning("Вход отклонён", extra={"email": email})
             if email != "default@default.ru":
                 self.state.notify("Неверный e-mail или пароль.", level=MessageLevel.ERROR)
         except ConnectError:
-            logger.warning("Login failed: server unavailable", extra={"email": email})
+            logger.warning(
+                "Не удалось выполнить вход: сервер недоступен",
+                extra={"email": email},
+            )
             self.state.notify(
                 "Не удалось подключиться к серверу. Проверьте интернет и повторите попытку.",
                 level=MessageLevel.ERROR,
             )
         except UnprocessableContentError:
             logger.warning(
-                "Login failed: invalid credentials payload",
+                "Не удалось выполнить вход: некорректный ответ авторизации",
                 extra={"email": email},
             )
             self.state.notify("Неверный e-mail или пароль.", level=MessageLevel.ERROR)
         except Exception:
-            logger.exception("Unexpected login failure", extra={"email": email})
+            logger.exception("Непредвиденная ошибка при входе", extra={"email": email})
             self.state.notify(
                 "Не удалось выполнить вход. Повторите попытку позже",
                 level=MessageLevel.ERROR,
