@@ -4,7 +4,7 @@ import flet as ft
 
 from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
-from epub.models import BookGenre
+from core.epub.models import BookGenre
 
 
 class Add_Book_Tab:
