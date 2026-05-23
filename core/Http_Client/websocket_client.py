@@ -52,7 +52,7 @@ class WebSocketClient:
         if msg_type == "re_login" and self.state:
             self.state.clear_user()
             self.state.notify(
-                data.get("message", "Вы вошли с другого устройства"),
+                data.get("message", "Сессия завершена: вход выполнен на другом устройстве."),
                 MessageLevel.WARNING,
             )
 
@@ -61,7 +61,7 @@ class WebSocketClient:
                 self.state.changes_route("/books")
             if self.state.is_authenticated:
                 self.state.notify(
-                f"Добавлена новая книга: {data.get('title')}",
+                f"В библиотеку добавлена новая книга: «{data.get('title')}».",
                 MessageLevel.INFO,
             )
 

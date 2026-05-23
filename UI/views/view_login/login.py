@@ -84,7 +84,7 @@ class LoginView(BaseView):
                 )
 
     async def _try_default_login(self):
-        if self.state.is_authenticated or self._auto_login_started:
+        if self.state.is_authenticated or self._auto_login_started or self.page.web:
             return
 
         self._auto_login_started = True

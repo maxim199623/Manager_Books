@@ -56,12 +56,12 @@ class Book_cont:
             success = await self.books_logic.unfavorite_book(self.book.id)
             if success:
                 self.book.is_favorite = False
-                self.state.notify(message="Книга удалена из избранного", level=MessageLevel.INFO)
+                self.state.notify(message=f"Книга «{self.book.title}» удалена из избранного.", level=MessageLevel.INFO)
         else:
             success = await self.books_logic.favorite_book(self.book.id)
             if success:
                 self.book.is_favorite = True
-                self.state.notify(message="Книга добавлена в избранное", level=MessageLevel.INFO)
+                self.state.notify(message=f"Книга «{self.book.title}» добавлена в избранное.", level=MessageLevel.INFO)
 
         if not success:
             return
@@ -303,7 +303,7 @@ class Book_cont:
         if self.is_chapers:
             self.state.select_book(book_id=e.control.data["index"], book=e.control.data["book"])
         else:
-            self.state.notify(message=f"Нет загруженных глав", level=MessageLevel.INFO)
+            self.state.notify(message=f"Для этой книги нет загруженных глав.", level=MessageLevel.INFO)
 
 
 

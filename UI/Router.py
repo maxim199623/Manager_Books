@@ -83,7 +83,7 @@ class Router:
 
         if not self._check_role(view):
             self.state.notify(
-                "Недостаточно прав доступа",
+                "Нет доступа к этому разделу.",
                 level=MessageLevel.WARNING,
             )
             self.page.go("/books" if self.state.is_authenticated else "/login")

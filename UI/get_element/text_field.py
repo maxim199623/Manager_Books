@@ -14,5 +14,8 @@ def get_text_field(*, label: str, field_name: str = None, width: int = 30000, pa
         on_change=func_field,
         multiline=multiline,
         min_lines=1,
-        input_filter=input_filter
+        input_filter=input_filter,
+        helper=" ",
+        helper_max_lines=1,
+        error_max_lines=2,
     )

@@ -105,10 +105,13 @@ class AdminView(BaseView):
     def _func_field(self, e):
         ic(e.control.data, e.control.value)
         self.form_data[e.control.data] = e.control.value
-        if self.book is not None and e.control.value.strip() !="":
-           self.book = self.book.model_copy(
-                update={e.control.data: e.control.value}
-            )
+
+        if hasattr(e.control, "error"):
+            e.control.error = None
+            e.control.update()
+
+        if self.book is not None and e.control.value.strip() != "":
+            self.book = self.book.model_copy(update={e.control.data: e.control.value})
 
 
     def _func_but(self, e):
@@ -143,7 +146,7 @@ class AdminView(BaseView):
         data = file.bytes
         size_mb = len(data) / (1024 * 1024)
         if size_mb >= 500:
-            self.state.notify("Файл слишком большой", MessageLevel.WARNING)
+            self.state.notify("Файл слишком большой. Максимальный размер — 500 МБ.", MessageLevel.WARNING)
             raise ValueError
         ic(isinstance(data, bytes))
         match key:
@@ -198,17 +201,16 @@ class AdminView(BaseView):
         return book, chapters
 
     def add_other_books(self):
-            if self.form_data["title"] is None or self.form_data["title"].strip() == "":
-                self.state.notify(message="Требуется указать название", level=MessageLevel.WARNING)
-                raise ValueError("No title")
-            elif self.form_data["description"] is None or self.form_data["description"].strip() == "":
-                self.state.notify(message="Требуется указать описание", level=MessageLevel.WARNING)
-                raise ValueError("No description")
-            else:
-                book = BookCreate(**self.form_data)
-                return book, None
+        if self.form_data["title"] is None or self.form_data["title"].strip() == "":
+            self.add_book_tab.set_field_error("title", "Введите название книги.")
+            raise ValueError("No title")
 
+        if self.form_data["description"] is None or self.form_data["description"].strip() == "":
+            self.add_book_tab.set_field_error("description", "Введите описание книги.")
+            raise ValueError("No description")
 
+        book = BookCreate(**self.form_data)
+        return book, None
 
     def build_content(self) -> ft.Control:
         """

@@ -17,15 +17,15 @@ class UserNew(BaseModel):
     def check_password(cls, v: SecretStr):
         pwd = v.get_secret_value()
         if len(pwd) < 8:
-            raise ValueError("Пароль должен быть не короче 8 символов")
+            raise ValueError("Минимум 8 символов.")
         if not any(c.islower() for c in pwd):
-            raise ValueError("Нужна строчная буква")
+            raise ValueError("Нужна строчная буква.")
         if not any(c.isupper() for c in pwd):
-            raise ValueError("Нужна заглавная буква")
+            raise ValueError("Нужна заглавная буква.")
         if not any(c.isdigit() for c in pwd):
-            raise ValueError("Нужна цифра")
+            raise ValueError("Нужна цифра.")
         if not any(not c.isalnum() for c in pwd):
-            raise ValueError("Нужен спецсимвол")
+            raise ValueError("Нужен спецсимвол.")
         return v
 
 class Users_Tab:
@@ -37,7 +37,7 @@ class Users_Tab:
         self.cont = ft.Container(expand=True)
         self.coll = ft.Column(expand=True)
         self.loader = ft.ProgressBar(bar_height=10, border_radius=10, visible=False)
-        self.table = ft.DataTable(expand=True, columns=[])
+        self.table = ft.DataTable(expand=True, columns=[], data_row_min_height=48,  data_row_max_height=float("inf"))
         self.mobile_list = ft.ListView(expand=True,spacing=8,visible=False)
 
         self.dialog_del = ft.AlertDialog(modal=True)
@@ -47,6 +47,40 @@ class Users_Tab:
         self.new_user = {"email": None,
                         "role": None,
                         "password": None}
+
+        self.new_email_fields = []
+        self.new_password_fields = []
+        self.new_role_fields = []
+
+    def _clear_new_user_errors(self):
+        for field in self.new_email_fields + self.new_password_fields:
+            field.error = None
+            field.update()
+        for field in self.new_role_fields:
+            field.error_text = None
+            field.update()
+
+    def _apply_new_user_errors(self, exc: ValidationError):
+        self._clear_new_user_errors()
+
+        for err in exc.errors():
+            field_name = err["loc"][0]
+
+            if field_name == "email":
+                for field in self.new_email_fields:
+                    field.error = "Введите корректный e-mail."
+                    field.update()
+
+            elif field_name == "password":
+                message = err["msg"]
+                for field in self.new_password_fields:
+                    field.error = message
+                    field.update()
+
+            elif field_name == "role":
+                for field in self.new_role_fields:
+                    field.error_text = "Выберите роль."
+                    field.update()
 
     def _settings_dialog_del(self, message:str , user_id: int):
         self.dialog_del.title = ft.Text("Удаление пользователя")
@@ -122,12 +156,19 @@ class Users_Tab:
 
         _list_col = ft.Column(tight=True, spacing=4)
 
-        _list_col.controls.append(get_text_field(label="email", func_field=self._func_field, field_name="email", width=250))
-        _list_col.controls.append(ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120, options=[
+        email_field = get_text_field(label="email", func_field=self._func_field, field_name="email", width=250)
+        role_field = ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120, helper_text=" ", options=[
                 ft.DropdownOption(key=UserRole.USER, text=UserRole.USER),
-                ft.DropdownOption(key=UserRole.ADMIN, text=UserRole.ADMIN)
-            ]))
-        _list_col.controls.append(get_text_field(label="password", func_field=self._func_field, field_name="password", width=250, password=True))
+                ft.DropdownOption(key=UserRole.ADMIN, text=UserRole.ADMIN)])
+        password_field = get_text_field(label="password", func_field=self._func_field, field_name="password", width=250, password=True)
+
+        self.new_email_fields.append(email_field)
+        self.new_password_fields.append(password_field)
+        self.new_role_fields.append(role_field)
+
+        _list_col.controls.append(email_field)
+        _list_col.controls.append(role_field)
+        _list_col.controls.append(password_field)
         _list_col.controls.append(get_button(text="", icon=ft.Icons.PERSON_ADD_ALT, func_but=self._func_but, button_name={"id": 0, "button_name":"add_user"}))
 
         _list_con.content = _list_col
@@ -156,13 +197,21 @@ class Users_Tab:
             self.mobile_list.update()
 
     def _add_new_row(self):
+
+        email_field = get_text_field(label="email", func_field=self._func_field, field_name="email", width=250)
+        role_field = ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120, helper_text=" ", options=[
+            ft.DropdownOption(key=UserRole.USER, text=UserRole.USER),
+            ft.DropdownOption(key=UserRole.ADMIN, text=UserRole.ADMIN)])
+        password_field = get_text_field(label="password", func_field=self._func_field, field_name="password", width=250, password=True)
+
+        self.new_email_fields.append(email_field)
+        self.new_password_fields.append(password_field)
+        self.new_role_fields.append(role_field)
+
         row = ft.DataRow(cells=[
-            ft.DataCell(get_text_field(label="email", func_field=self._func_field, field_name="email", width=250)),
-            ft.DataCell(ft.Dropdown(label="role", on_select=self._func_field, data="role", width=120,options=[
-                ft.DropdownOption(key=UserRole.USER, text=UserRole.USER),
-                ft.DropdownOption(key=UserRole.ADMIN, text=UserRole.ADMIN)
-            ])),
-            ft.DataCell(get_text_field(label="password", func_field=self._func_field, field_name="password", width=250, password=True)),
+            ft.DataCell(email_field),
+            ft.DataCell(role_field),
+            ft.DataCell(password_field),
             ft.DataCell(get_button(text="", icon=ft.Icons.PERSON_ADD_ALT, func_but=self._func_but, button_name={"id": 0, "button_name":"add_user"}))
         ])
         self.table.rows.append(row)
@@ -174,23 +223,29 @@ class Users_Tab:
     def _func_field(self, e):
         ic(e.control.data, e.control.value)
         check = True
+        if hasattr(e.control, "error"):
+            e.control.error = None
+        if hasattr(e.control, "error_text"):
+            e.control.error_text = None
         match e.control.data:
             case "email":
                 try:
                     UserNew(email= e.control.value)
-                    e.control.border_color = None
-                    check = True
                 except ValidationError:
-                    e.control.border_color = ft.Colors.RED
+                    e.control.error = "Некорректный e-mail."
                     check = False
             case "password":
                  try:
                     UserNew(password=e.control.value)
-                    e.control.border_color = None
                     check = True
-                 except ValidationError:
-                    e.control.border_color = ft.Colors.RED
+                 except ValidationError as exc:
+                    e.control.error = exc.errors()[0]["msg"]
                     check = False
+            case "role":
+                if not e.control.value:
+                    e.control.error_text = "Выберите роль."
+                    check = False
+        e.control.update()
         if check:
             ic(check)
             self.new_user[e.control.data] = e.control.value
@@ -215,7 +270,7 @@ class Users_Tab:
             case "del_yes":
                 self.page.pop_dialog()
                 if self.state.user.id == e.control.data["id"]:
-                    self.state.notify(message=f"Себя удалить нельзя", level=MessageLevel.WARNING)
+                    self.state.notify(message=f"Нельзя удалить текущего пользователя", level=MessageLevel.WARNING)
                 else:
                     self.page.run_task(self._dell_user, user_id=e.control.data["id"])
             case "del_not":
@@ -237,7 +292,7 @@ class Users_Tab:
                 self.new_user = dict.fromkeys(self.new_user, None)
                 await self._get_rows()
         except ValidationError as exc:
-            self.state.notify(message=f"Не те данные: {exc}", level=MessageLevel.ERROR)
+            self._apply_new_user_errors(exc)
 
 
     async def _get_rows(self):
@@ -249,6 +304,9 @@ class Users_Tab:
        self.sync_view_mode()
        self.table.rows.clear()
        self.mobile_list.controls.clear()
+       self.new_email_fields.clear()
+       self.new_password_fields.clear()
+       self.new_role_fields.clear()
        for user in users:
            self.add_row(user)
        self._add_new_row()

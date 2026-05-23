@@ -26,6 +26,9 @@ class Add_Book_Tab:
         self.button_genres = ft.SubmenuButton(content=ft.Icon(ft.Icons.ADD))
         self.selected_genres = set()
 
+        self.title_field = None
+        self.description_field = None
+
 
     def _selected_genres(self, genre, item, e):
         if genre in self.selected_genres:
@@ -50,6 +53,19 @@ class Add_Book_Tab:
             self.button_genres.controls.append(self._get_popup_menu_item(genre.value))
 
 
+    def clear_field_error(self, field_name: str):
+        field = self.title_field if field_name == "title" else self.description_field
+        if field is not None:
+            field.error = None
+            field.update()
+
+    def set_field_error(self, field_name: str, message: str):
+        field = self.title_field if field_name == "title" else self.description_field
+        if field is not None:
+            field.error = message
+            field.update()
+
+
 
     def _setting_coll1(self, func_field, func_but):
         self.coll1.alignment = ft.MainAxisAlignment.CENTER
@@ -58,11 +74,14 @@ class Add_Book_Tab:
 
         self.coll1.controls.append(self.loader)
 
-        self.coll1.controls.append(get_text_field(label="Название", func_field=func_field, field_name="title"))
+        self.title_field = get_text_field(label="Название", func_field=func_field, field_name="title")
+        self.description_field = get_text_field(label="Описание", func_field=func_field, field_name="description", multiline=True)
+
+        self.coll1.controls.append(self.title_field)
         self.coll1.controls.append(get_text_field(label="Автор", func_field=func_field, field_name="author"))
         self.coll1.controls.append(get_text_field(label="Серия", func_field=func_field, field_name="series"))
         self.coll1.controls.append(get_text_field(label="Формат", func_field=func_field, field_name="format"))
-        self.coll1.controls.append(get_text_field(label="Описание", func_field=func_field, field_name="description", multiline=True))
+        self.coll1.controls.append(self.description_field)
         self.genres.on_selection_change = func_field
 
         self._setting_button_genres()
