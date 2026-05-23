@@ -51,6 +51,7 @@ class Book_cont:
         self.favorite_button = ft.IconButton()
         self.favorite_button_min=ft.IconButton()
         self.on_favorite_change = None
+        self.on_delete_change = None
         self.read_progress = 0.0
         self.on_progress_change = None
 
@@ -162,7 +163,7 @@ class Book_cont:
 
     def _get_elements(self, cover, title, description, index):
         if cover is None:
-            cover = open("UI/views/view_books/cover.png", "rb").read()
+            cover = open("cover.png", "rb").read()
         all_colum = ft.Column()
         all_row = ft.Row(expand=True)
         data_column = ft.Column(alignment = ft.MainAxisAlignment.CENTER, expand=True)
@@ -293,7 +294,8 @@ class Book_cont:
 
     async def _del_book(self, _id):
         if await self.books_logic.delete_book(_id):
-           pass
+            if self.on_delete_change is not None:
+                self.on_delete_change()
 
     async def load_button(self, e):
         """Кнопка для скачивания книги"""

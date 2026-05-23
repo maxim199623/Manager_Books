@@ -252,6 +252,13 @@ class BooksView(BaseView):
     def _on_favorite_change(self):
         self.page.run_task(self._search)
 
+    def _on_delete_change(self, deleted_card: Book_cont):
+        self.cards = [card for card in self.cards if card is not deleted_card]
+        self._column.controls = [self.search_row, self.loader] + [card.cont for card in self.cards]
+
+        if self._column.page is not None:
+            self._column.update()
+
     def _on_progress_change(self):
         if self.sort_key == "progress":
             self._sort_cards()
@@ -266,6 +273,7 @@ class BooksView(BaseView):
             self.loader.value = (index + 1) / len(books)
             card = Book_cont(page=self.page)
             card.on_favorite_change = self._on_favorite_change
+            card.on_delete_change = lambda deleted_card=card: self._on_delete_change(deleted_card)
             card.on_progress_change = self._on_progress_change
             self.cards.append(card)
             cont_book = card.get_cont(
