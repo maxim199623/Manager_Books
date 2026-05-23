@@ -1,6 +1,8 @@
 import logging
 import ssl
 import uuid
+import asyncio
+import mimetypes
 
 import httpx
 from typing import List, Optional
@@ -12,6 +14,7 @@ from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate
 from core.Http_Client.schemas.chapter import ChapterCreate, ChapterRead, ChapterCount, ChapterReadCount, ChapterPatch
 
 logger = logging.getLogger("app")
+
 
 class ApiClient:
     """
@@ -66,13 +69,15 @@ class ApiClient:
                                    json=user.model_dump(),
                                    expected_status=200)
 
-    async def add_book(self, book: BookCreate) -> None:
-       resp = await self._request(method=HTTPMethod.POST,
-                            url="/books/add_book",
-                            json=book.model_dump(exclude_none=True),
-                            expected_status=201)
-
-       return resp
+    async def add_book(self, book: BookCreate):
+        data, files = self._build_book_payload(book)
+        return await self._request(
+            method=HTTPMethod.POST,
+            url="/books/add_book",
+            data=data,
+            files=files,
+            expected_status=201,
+        )
 
     async def favorite_book(self, book_id: uuid.UUID) -> None:
        resp = await self._request(method=HTTPMethod.POST,
@@ -101,7 +106,9 @@ class ApiClient:
                                    url="/books/",
                                    params=params,
                                    expected_status=200)
-        return [BookRead(**b) for b in resp]
+        books = [BookRead(**b) for b in resp]
+        await self._prefetch_book_covers(books)
+        return books
 
     async def patch_book(self, book_id: uuid.UUID, book: BookUpdate) -> None:
         await self._request(method=HTTPMethod.PATCH,
@@ -159,11 +166,89 @@ class ApiClient:
                             json=chapter.model_dump(exclude_none=True),
                             expected_status=200)
 
+    async def get_book_cover(self, book_id: uuid.UUID):
+        return await self._request(
+            method=HTTPMethod.GET,
+            url=f"/books/{book_id}/cover",
+            expected_status=200,
+            return_bytes=True,
+        )
+
+    async def get_book_file(self, book_id: uuid.UUID):
+        return await self._request(
+            method=HTTPMethod.GET,
+            url=f"/books/{book_id}/file",
+            expected_status=200,
+            return_bytes=True,
+        )
+
 
     def _auth_headers(self) -> dict:
         if not self.token:
             return {}
         return {"Authorization": f"Bearer {self.token}"}
+
+    async def _prefetch_book_covers(self, books: List[BookRead]) -> None:
+        semaphore = asyncio.Semaphore(5)
+
+        async def load_cover(book: BookRead) -> None:
+            if book.cover_size <= 0:
+                return
+            async with semaphore:
+                book.cover = await self.get_book_cover(book.id)
+
+        await asyncio.gather(*(load_cover(book) for book in books))
+
+    @staticmethod
+    def _build_book_payload(book: BookCreate):
+        data = {"title": book.title}
+        optional_fields = {
+            "author": book.author,
+            "description": book.description,
+            "series": book.series,
+            "genres": book.genres,
+            "format": book.format,
+        }
+        for key, value in optional_fields.items():
+            if value is not None:
+                data[key] = value
+
+        files: dict[str, tuple[str, bytes, str]] = {}
+        if book.cover is not None:
+            cover_name, cover_mime = ApiClient._guess_cover_upload(book.cover)
+            files["cover"] = (cover_name, book.cover, cover_mime)
+        if book.file is not None:
+            file_name, file_mime = ApiClient._guess_book_upload(book)
+            files["file"] = (file_name, book.file, file_mime)
+
+        return data, files
+
+    @staticmethod
+    def _guess_cover_upload(cover: bytes) -> tuple[str, str]:
+        if cover.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "cover.png", "image/png"
+        if cover.startswith(b"\xff\xd8\xff"):
+            return "cover.jpg", "image/jpeg"
+        if cover.startswith((b"GIF87a", b"GIF89a")):
+            return "cover.gif", "image/gif"
+        if cover.startswith(b"RIFF") and cover[8:12] == b"WEBP":
+            return "cover.webp", "image/webp"
+        return "cover.bin", "application/octet-stream"
+
+    @staticmethod
+    def _guess_book_upload(book: BookCreate) -> tuple[str, str]:
+        extension = (book.format or "bin").strip(".").lower()
+        title = book.title.replace(" / ", "_").strip() or "book"
+        file_name = f"{title}.{extension}" if extension else title
+        guessed_mime = mimetypes.guess_type(file_name)[0]
+        mime_by_extension = {
+            "epub": "application/epub+zip",
+            "fb2": "application/x-fictionbook+xml",
+            "mobi": "application/x-mobipocket-ebook",
+            "pdf": "application/pdf",
+            "txt": "text/plain",
+        }
+        return file_name, mime_by_extension.get(extension, guessed_mime or "application/octet-stream")
 
     async def _request(self,
                        method: HTTPMethod,
@@ -171,15 +256,19 @@ class ApiClient:
                        expected_status: int,
                        json: dict | list | None = None,
                        params: dict | None = None,
+                       data: dict | None = None,
+                       files: dict | None = None,
+                       return_bytes: bool = False,
                        ):
         ic()
         ic(f"Запрос {method} на {url}")
-        ic(f"json {"Есть" if json is not None else "Нету" }")
         resp = await self._client.request(
             method.value,
             url,
             json=json,
             params=params,
+            data=data,
+            files=files,
             headers=self._auth_headers(),
         )
 
@@ -187,10 +276,16 @@ class ApiClient:
             logger.warning(f"От {resp.url} вернулся {resp.status_code}")
             map_http_error(resp)
 
-        if resp.status_code == 204:
+        if return_bytes:
+            return resp.content
+
+        if resp.status_code == 204 or not resp.content:
             return None
 
-        return resp.json()
+        try:
+            return resp.json()
+        except ValueError:
+            return None
 
     async def close(self):
         await self._client.aclose()

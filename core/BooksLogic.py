@@ -63,3 +63,14 @@ class BooksLogic(ApiLogic):
                 not_found_message="Книга не найдена. Возможно, она уже удалена.",
             )
             return False
+
+    async def get_book_file(self, book_id):
+        try:
+            return await self.api.get_book_file(book_id)
+        except Exception as exc:
+            self._handle_api_error(
+                exc,
+                default_message="Не удалось скачать книгу. Повторите попытку.",
+                not_found_message="Файл книги недоступен.",
+            )
+            return None

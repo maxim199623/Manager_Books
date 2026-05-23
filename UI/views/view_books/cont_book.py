@@ -11,6 +11,25 @@ from core.MessageLevel import MessageLevel
 from core.users.models import UserRole
 
 
+def book_has_downloadable_file(book) -> bool:
+    return getattr(book, "file", None) is not None or getattr(book, "file_size", 0) > 0
+
+
+def book_download_name(book) -> str:
+    file_name = getattr(book, "file_name", None)
+    if file_name:
+        return file_name
+
+    title = getattr(book, "title", "book")
+    if isinstance(title, (list, tuple)):
+        title = " / ".join(map(str, title))
+    safe_title = str(title).replace(" / ", "_").strip() or "book"
+    file_format = getattr(book, "format", None)
+    if file_format:
+        return f"{safe_title}.{file_format}"
+    return safe_title
+
+
 class Book_cont:
     def __init__(self, page):
         self.page = page
@@ -133,7 +152,7 @@ class Book_cont:
     def _get_cont_button(self, index):
         button_coll = ft.Column()
         button_coll.controls.append(self.loader)
-        if self.book.file is not None:
+        if book_has_downloadable_file(self.book):
             button_coll.controls.append(get_button(button_name=index, text="Скачать", func_but=self.load_button))
         if self.state.user.role == UserRole.ADMIN:
             button_coll.controls.append(get_button(button_name=index, text="Удалить", func_but=self.del_button))
@@ -209,7 +228,7 @@ class Book_cont:
         self.page.run_task(self.get_progressbar, index=index, progressbar=progressbar)
 
         button = ft.Row(expand=True, alignment=ft.MainAxisAlignment.SPACE_AROUND,)
-        if self.book.file is not None:
+        if book_has_downloadable_file(self.book):
             button.controls.append(ft.IconButton(icon=ft.Icons.DOWNLOAD, on_click=self.load_button, data=index))
         if self.state.user.role == UserRole.ADMIN:
             button.controls.append(ft.IconButton(icon=ft.Icons.DELETE_FOREVER_ROUNDED, on_click=self.del_button, data=index))
@@ -286,10 +305,18 @@ class Book_cont:
         button.update()
         self.loader.update()
         try:
+            payload = book.file
+            if payload is None:
+                payload = await self.books_logic.get_book_file(book.id)
+                if payload is None:
+                    return
+                book.file = payload
+                self.cont.data["book"] = book
+
             await self.file_picker.save_file(
             dialog_title="Сохранить файл",
-            file_name=f"{book.title.replace(' / ', '_')}.{book.format}",
-            src_bytes=book.file
+            file_name=book_download_name(book),
+            src_bytes=payload
             )
         finally:
             self.loader.visible = False

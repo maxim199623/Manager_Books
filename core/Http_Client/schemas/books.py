@@ -46,6 +46,11 @@ class BookRead(BaseModel):
     cover: Optional[bytes] = None
     file: Optional[bytes] = None
     is_favorite: Optional[bool] = False
+    cover_mime: Optional[str] = None
+    cover_size: int = 0
+    file_name: Optional[str] = None
+    file_mime: Optional[str] = None
+    file_size: int = 0
 
     created_at: datetime
 
@@ -66,8 +71,12 @@ class BookRead(BaseModel):
 
 
 
-class BookUpdate(BookCreate):
+class BookUpdate(BaseModel):
     title: Optional[str] = None
+    author: Optional[str] = None
     description: Optional[str] = None
+    series: Optional[str] = None
+    genres: Optional[str] = None
+    format: Optional[str] = None
 
 
