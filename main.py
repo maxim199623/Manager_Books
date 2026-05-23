@@ -5,8 +5,11 @@ from pathlib import Path
 from core.Http_Client.websocket_client import WebSocketClient
 from UI.Router import Router
 from core.Auth import AuthLogic
+from core.BooksLogic import BooksLogic
+from core.ChaptersLogic import ChaptersLogic
 from core.Http_Client.client import ApiClient
 from core.logging_setup import setup_logging
+from core.UsersLogic import UsersLogic
 import flet as ft
 
 from core.state import AppState
@@ -46,6 +49,9 @@ def ui(page: ft.Page):
     page.session.store.set("state", state)
     page.session.store.set("auth", AuthLogic(state, api, ws))
     page.session.store.set("api", api)
+    page.session.store.set("books_logic", BooksLogic(state, api))
+    page.session.store.set("chapters_logic", ChaptersLogic(state, api))
+    page.session.store.set("users_logic", UsersLogic(state, api))
 
     router = Router(page)
 

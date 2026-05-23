@@ -64,7 +64,10 @@ class AppState:
         self._notify("user")
 
     def clear_user(self):
-        logger.info(f"Выход пользователя с id:{self.user.id}")
+        if self.user is not None:
+            logger.info(f"Выход пользователя с id:{self.user.id}")
+        else:
+            logger.info("Выход пользователя без активной сессии")
         self.user = None
         self.current_book_id = None
         self._notify("user")

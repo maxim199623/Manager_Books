@@ -1,9 +1,8 @@
 from httpx import ConnectError
 
-from core.Http_Client.websocket_client import WebSocketClient
 from core.MessageLevel import MessageLevel
 from core.Http_Client.client import ApiClient
-from core.Http_Client.errors import ApiError, UnauthorizedError
+from core.Http_Client.errors import ApiError, UnauthorizedError, UnprocessableContentError
 from core.state import  AppState
 from core.users.models import User
 import jwt
@@ -30,18 +29,19 @@ class AuthLogic:
 
         except UnauthorizedError as exc:
             if email != "default@default.ru":
-                self.state.notify(message=str(exc), level=MessageLevel.ERROR)
+                self.state.notify(message=str("Неверный e-mail или пароль."), level=MessageLevel.ERROR)
 
         except ConnectError as exc:
             ic(exc)
-            self.state.notify(message=f"Ошибка подключения к серверу", level=MessageLevel.ERROR)
+            self.state.notify(message=f"Не удалось подключиться к серверу. Проверьте интернет и повторите попытку.", level=MessageLevel.ERROR)
 
-        except ApiError as exc:
-            self.state.notify(message=str(exc), level=MessageLevel.ERROR)
+        except UnprocessableContentError as exc:
+            ic(exc)
+            self.state.notify(message=f"Неверный e-mail или пароль.", level=MessageLevel.ERROR)
 
         except Exception as exc:
             ic(exc)
-            self.state.notify(message=f"Ошибка авторизации: {exc}", level=MessageLevel.ERROR)
+            self.state.notify(message=f"Не удалось выполнить вход. Повторите попытку позже", level=MessageLevel.ERROR)
 
     async def logout(self):
         if self.ws:

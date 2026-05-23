@@ -1,9 +1,8 @@
 import flet as ft
 from pydantic import ValidationError, BaseModel, SecretStr, field_validator, EmailStr
 
-from core.Http_Client.client import ApiClient
-from core.Http_Client.errors import ConflictError
 from core.Http_Client.schemas.users import UserRead, UserRole, UserCreate, UserPatch
+from core.UsersLogic import UsersLogic
 from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
 from core.state import AppState
@@ -32,8 +31,8 @@ class UserNew(BaseModel):
 class Users_Tab:
     def __init__(self, page):
         self.page = page
-        self.api : ApiClient = page.session.store.get("api")
         self.state: AppState = page.session.store.get("state")
+        self.users_logic: UsersLogic = page.session.store.get("users_logic")
         self._built = False
         self.cont = ft.Container(expand=True)
         self.coll = ft.Column(expand=True)
@@ -223,41 +222,29 @@ class Users_Tab:
                  self.page.pop_dialog()
 
     async def _change_user(self, user_id):
-        try:
-            await self.api.patch_user(user=UserPatch(**self.new_user), user_id=user_id)
+        if await self.users_logic.patch_user(user=UserPatch(**self.new_user), user_id=user_id):
             await self._get_rows()
-        except Exception as exc:
-            self.state.notify(message=f"ошибка изменения пользователя: {exc}", level=MessageLevel.ERROR)
 
     async def _dell_user(self, user_id):
-        try:
-            await self.api.delete_user(user_id=user_id)
+        if await self.users_logic.delete_user(user_id=user_id):
             await self._get_rows()
-        except Exception as exc:
-            self.state.notify(message=f"ошибка удаления пользователя: {exc}", level=MessageLevel.ERROR)
 
     async def _add_user(self):
         try:
             user = UserCreate(**self.new_user)
-            self.new_user = dict.fromkeys(self.new_user, None)
             ic(user)
-            await self.api.add_user(user)
-            await self._get_rows()
+            if await self.users_logic.add_user(user):
+                self.new_user = dict.fromkeys(self.new_user, None)
+                await self._get_rows()
         except ValidationError as exc:
             self.state.notify(message=f"Не те данные: {exc}", level=MessageLevel.ERROR)
-            await self._get_rows()
-        except ConflictError as exc:
-            self.state.notify(message=f"Такой пользователь уже есть", level=MessageLevel.ERROR)
-            await self._get_rows()
-        except Exception as exc:
-            if self.state.is_authenticated:
-                self.state.notify(message=f"Ошибка добавления пользователя: {exc}", level=MessageLevel.ERROR)
-                await self._get_rows()
 
 
     async def _get_rows(self):
        self.new_user = dict.fromkeys(self.new_user, None)
-       users = await self.api.get_users()
+       users = await self.users_logic.get_users()
+       if users is None:
+           return
        ic(users)
        self.sync_view_mode()
        self.table.rows.clear()

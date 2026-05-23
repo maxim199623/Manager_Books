@@ -4,8 +4,11 @@ import flet as ft
 from abc import ABC, abstractmethod
 
 from core.Auth import AuthLogic
+from core.BooksLogic import BooksLogic
+from core.ChaptersLogic import ChaptersLogic
 from core.Http_Client.client import ApiClient
 from core.state import AppState, MessageLevel
+from core.UsersLogic import UsersLogic
 from core.users.models import UserRole
 
 
@@ -26,6 +29,9 @@ class BaseView(ABC):
         self.state: AppState = page.session.store.get("state")
         self.auth_logic: AuthLogic = page.session.store.get("auth")
         self.api : ApiClient = page.session.store.get("api")
+        self.books_logic: BooksLogic = page.session.store.get("books_logic")
+        self.chapters_logic: ChaptersLogic = page.session.store.get("chapters_logic")
+        self.users_logic: UsersLogic = page.session.store.get("users_logic")
 
         self.modal_dialog = ft.AlertDialog(modal=False)
         self.info_dialog = ft.SnackBar(content=ft.Text(""))

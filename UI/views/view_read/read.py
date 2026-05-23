@@ -122,18 +122,17 @@ class ReadView(BaseView):
 
 
     async def __cler_history(self):
-        try:
-            await self.api.delete_history_read_chapters_in_book(self.state.current_book_id)
-            controls = self._pagelet_drawer.controls
-            for c in controls:
-                if isinstance(c, ft.NavigationDrawerDestination):
-                    c.icon = ft.Icons.CHROME_READER_MODE_OUTLINED
+        if not await self.chapters_logic.delete_history_read_chapters_in_book(self.state.current_book_id):
+            return
 
-            self._pagelet_drawer.selected_index = 0
-            await self._get_chapter(0)
-            self._pagelet_drawer.update()
-        except Exception as exc:
-            self.state.notify(message=f"ошибка удаления истории глав: {exc}", level=MessageLevel.ERROR)
+        controls = self._pagelet_drawer.controls
+        for c in controls:
+            if isinstance(c, ft.NavigationDrawerDestination):
+                c.icon = ft.Icons.CHROME_READER_MODE_OUTLINED
+
+        self._pagelet_drawer.selected_index = 0
+        await self._get_chapter(0)
+        self._pagelet_drawer.update()
 
 
 
@@ -163,37 +162,33 @@ class ReadView(BaseView):
 
     async def get_chap(self):
         self._pagelet_drawer.controls.clear()
-        try:
-            capers_num = await self.api.get_chapters_num(self.state.current_book_id)
-            history = await self.get_history()
-        except Exception as exc:
-            self.state.notify(message=f"ошибка получения количества глав: {exc}", level=MessageLevel.ERROR)
-        finally:
-            for caper in range(capers_num.chapters_count):
-                read = caper in history
-                self._pagelet_drawer.controls += self._get_drawer_destination(label=f"Глава {caper}", read=read)
-            self._pagelet_drawer.selected_index = history[-1] if history != [] else 0
-            self._pagelet_drawer.visible = True
-            self._pagelet_drawer.update()
+        capers_num = await self.chapters_logic.get_chapters_num(self.state.current_book_id)
+        history = await self.get_history()
+        if capers_num is None or history is None:
+            return
 
-            await self._get_chapter(history[-1] if history != [] else 0)
+        for caper in range(capers_num.chapters_count):
+            read = caper in history
+            self._pagelet_drawer.controls += self._get_drawer_destination(label=f"Глава {caper}", read=read)
+        self._pagelet_drawer.selected_index = history[-1] if history != [] else 0
+        self._pagelet_drawer.visible = True
+        self._pagelet_drawer.update()
+
+        await self._get_chapter(history[-1] if history != [] else 0)
 
     async def get_history(self):
-        try:
-           history = await self.api.get_read_chapters_in_book(self.state.current_book_id)
-           ic(sorted(history))
-           return sorted(history)
-        except Exception as exc:
-            self.state.notify(message=f"ошибка получения истории глав: {exc}", level=MessageLevel.ERROR)
-        return []
+        history = await self.chapters_logic.get_read_chapters_in_book(self.state.current_book_id)
+        if history is None:
+            return None
+        ic(sorted(history))
+        return sorted(history)
 
 
     async def _get_chapter(self, index):
-        try:
-            chapter = await self.api.get_chapter(self.state.current_book_id, index)
-            self.current_chapter = chapter
-        except Exception as exc:
-            self.state.notify(message=f"ошибка получения главы: {exc}", level=MessageLevel.ERROR)
+        chapter = await self.chapters_logic.get_chapter(self.state.current_book_id, index)
+        if chapter is None:
+            return
+        self.current_chapter = chapter
         if chapter.chapter_name == "Постер":
             cover = self.state.current_book.cover
             if cover is not None:

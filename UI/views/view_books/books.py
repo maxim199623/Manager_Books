@@ -259,14 +259,11 @@ class BooksView(BaseView):
             self._sort_cards()
 
     async def _load_books_async(self):
-        try:
-            books = await self.api.get_books()
-        except SessionReplacedError:
-            self.state.notify(message="Сессия закрыта", level=MessageLevel.WARNING)
-            
-            self.state.clear_user()
-        except Exception as exc:
-            self.state.notify(message=f"ошибка получения книг, {exc}", level=MessageLevel.WARNING)
+        books = await self.books_logic.get_books()
+        if books is None:
+            self.loader.visible = False
+            self.page.update()
+            return
         for index, book in enumerate(books):
             self.loader.value = (index + 1) / len(books)
             card = Book_cont(page=self.page)

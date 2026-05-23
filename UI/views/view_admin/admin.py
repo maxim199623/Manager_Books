@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import List
 import flet as ft
 
-from core.Http_Client.errors import UnprocessableContentError, ConflictError
 from core.Http_Client.schemas.books import BookCreate
 from core.Http_Client.schemas.chapter import ChapterCreate
 from UI.views.BaseView import BaseView
@@ -176,22 +175,10 @@ class AdminView(BaseView):
             book, chapters = self.add_epub()
         else:
             book, chapters = self.add_other_books()
-        id_book = None
-        try:
-            id_book = await self.api.add_book(book)
-        except UnprocessableContentError as exc:
-            self.state.notify(message=f"Ошибка добавления книги: {exc}", level=MessageLevel.ERROR)
-        except ConflictError as exc:
-            self.state.notify(message=f"Ошибка добавления книги: {exc}", level=MessageLevel.ERROR)
-        except Exception as exc:
-            self.state.notify(message=f"Ошибка добавления книги: {exc}", level=MessageLevel.ERROR)
-
-        try:
-            if id_book is not None and chapters is not None:
-                ic(chapters)
-                await self.api.add_chapters(book_id=id_book["id"], chapters=chapters)
-        except Exception as exc:
-            self.state.notify(message=f"ошибка добавления глав: {exc}", level=MessageLevel.ERROR)
+        id_book = await self.books_logic.add_book(book)
+        if id_book is not None and chapters is not None:
+            ic(chapters)
+            await self.chapters_logic.add_chapters(book_id=id_book["id"], chapters=chapters)
 
     def add_epub(self):
         book = BookCreate(title=self.book.title,

@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 
 import flet as ft
 
-from core.Http_Client.client import ApiClient
+from core.BooksLogic import BooksLogic
+from core.ChaptersLogic import ChaptersLogic
 from UI.get_element.button import get_button
 from core.state import AppState
 from core.MessageLevel import MessageLevel
@@ -15,7 +16,8 @@ class Book_cont:
         self.page = page
         self.cont = ft.Container(expand=False)
         self.state: AppState = page.session.store.get("state")
-        self.api: ApiClient = page.session.store.get("api")
+        self.books_logic: BooksLogic = page.session.store.get("books_logic")
+        self.chapters_logic: ChaptersLogic = page.session.store.get("chapters_logic")
         self.dialog_del = ft.AlertDialog(modal=True)
         self.loader = ft.ProgressBar(bar_height=10, border_radius=10, visible=False)
 
@@ -49,23 +51,25 @@ class Book_cont:
         button.on_click=self._favorite_click_async
 
     async def _favorite_click_async(self,e):
-        try:
-            if self._is_favorite():
-                await self.api.unfavorite_book(self.book.id)
+        success = False
+        if self._is_favorite():
+            success = await self.books_logic.unfavorite_book(self.book.id)
+            if success:
                 self.book.is_favorite = False
                 self.state.notify(message="Книга удалена из избранного", level=MessageLevel.INFO)
-            else:
-                await self.api.favorite_book(self.book.id)
+        else:
+            success = await self.books_logic.favorite_book(self.book.id)
+            if success:
                 self.book.is_favorite = True
                 self.state.notify(message="Книга добавлена в избранное", level=MessageLevel.INFO)
 
-            self.cont.data["book"] = self.book
-            self._update_favorite_buttons()
-            if self.on_favorite_change is not None:
-                self.on_favorite_change()
+        if not success:
+            return
 
-        except Exception as exc:
-            self.state.notify(message=f"ошибка изменения избранного: {exc}", level=MessageLevel.ERROR)
+        self.cont.data["book"] = self.book
+        self._update_favorite_buttons()
+        if self.on_favorite_change is not None:
+            self.on_favorite_change()
 
     def _update_favorite_buttons(self):
         is_favorite = self._is_favorite()
@@ -162,19 +166,24 @@ class Book_cont:
         return all_colum
 
     async def get_progressbar(self, index, progressbar):
-        try:
-            full = await self.api.get_chapters_num(index)
-            read = await self.api.get_count_read_chapters_in_book(index)
-            if full.chapters_count == 0:
-                progressbar.visible = False
-                self.is_chapers = False
-                self.read_progress = 0.0
-            else:
-                self.read_progress = read.read_chapters / full.chapters_count
-                progressbar.value = self.read_progress
-                self.is_chapers = True
-        except Exception as exc:
-            self.state.notify(message=f"ошибка получения истории: {exc}", level=MessageLevel.ERROR)
+        full = await self.chapters_logic.get_chapters_num(index)
+        read = await self.chapters_logic.get_count_read_chapters_in_book(index)
+        if full is None or read is None:
+            progressbar.visible = False
+            self.is_chapers = False
+            self.read_progress = 0.0
+            if self.is_build:
+                progressbar.update()
+            return
+
+        if full.chapters_count == 0:
+            progressbar.visible = False
+            self.is_chapers = False
+            self.read_progress = 0.0
+        else:
+            self.read_progress = read.read_chapters / full.chapters_count
+            progressbar.value = self.read_progress
+            self.is_chapers = True
 
         if self.on_progress_change is not None:
             self.on_progress_change()
@@ -264,12 +273,8 @@ class Book_cont:
                 self.page.run_task(self._del_book, e.control.data["id"])
 
     async def _del_book(self, _id):
-        try:
-           await self.api.delete_book(_id)
-           #self.cont.visible = False
-           #self.cont.update()
-        except Exception as exc:
-            self.state.notify(message=f"ошибка удаления Книги: {exc}", level=MessageLevel.ERROR)
+        if await self.books_logic.delete_book(_id):
+           pass
 
     async def load_button(self, e):
         """Кнопка для скачивания книги"""
