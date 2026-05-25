@@ -127,15 +127,79 @@ class EpubReader:
         parts = [part.strip() for part in normalized.split("/") if part.strip()]
         return parts or ["Без названия"]
 
-    def _load_cover(self, read_book) -> str | None:
+    def _load_default_cover(self) -> bytes:
+        from pathlib import Path
+
+        cover_path = Path(__file__).resolve().parents[2] / "assets" / "cover.png"
+        return cover_path.read_bytes()
+
+    def _is_image_item(self, item) -> bool:
+        if item is None:
+            return False
+
+        get_type = getattr(item, "get_type", None)
+        if callable(get_type):
+            try:
+                return get_type() == 1
+            except TypeError:
+                pass
+
+        media_type = getattr(item, "media_type", "") or ""
+        return media_type.startswith("image/")
+
+    def _load_cover(self, read_book) -> bytes | None:
         """Получаем постер """
-        cover = None
-        item = read_book.get_item_with_id("CoverImage")
-        if item.get_type() == 1: # 1 - изображение
+
+        def content_from_item(item):
+            if not self._is_image_item(item):
+                return None
             content = item.get_content()
             if isinstance(content, bytes):
-                cover = content
-        return cover
+                return content
+            return None
+
+        get_item_with_id = getattr(read_book, "get_item_with_id", None)
+        meta_entries = read_book.get_metadata("OPF", "meta")
+        for _value, attrs in meta_entries:
+            attrs = attrs or {}
+            if attrs.get("name") == "cover" and attrs.get("content") and callable(
+                get_item_with_id
+            ):
+                content = content_from_item(get_item_with_id(attrs["content"]))
+                if content is not None:
+                    return content
+
+        if callable(get_item_with_id):
+            content = content_from_item(get_item_with_id("CoverImage"))
+            if content is not None:
+                return content
+
+        get_items = getattr(read_book, "get_items", None)
+        items = list(get_items()) if callable(get_items) else []
+
+        for item in items:
+            properties = set(getattr(item, "properties", []) or [])
+            if "cover-image" in properties:
+                content = content_from_item(item)
+                if content is not None:
+                    return content
+
+        for item in items:
+            item_id = (getattr(item, "id", "") or "").lower()
+            media_type = getattr(item, "media_type", "") or ""
+            if item_id.startswith("cover") and media_type.startswith("image/"):
+                content = content_from_item(item)
+                if content is not None:
+                    return content
+
+        for item in items:
+            media_type = getattr(item, "media_type", "") or ""
+            if media_type.startswith("image/"):
+                content = content_from_item(item)
+                if content is not None:
+                    return content
+
+        return self._load_default_cover()
 
 
 
