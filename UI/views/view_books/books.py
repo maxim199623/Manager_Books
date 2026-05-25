@@ -289,6 +289,7 @@ class BooksView(BaseView):
 
             self.cards.append(card)
             self._column.controls.append(cont_book)
+            self._sort_cards()
             #self._column.update()
             self.loader.update()
 
