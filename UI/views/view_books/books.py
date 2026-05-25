@@ -269,24 +269,28 @@ class BooksView(BaseView):
             self.loader.visible = False
             self.page.update()
             return
+        self.cards.clear()
         for index, book in enumerate(books):
             self.loader.value = (index + 1) / len(books)
             card = Book_cont(page=self.page)
             card.on_favorite_change = self._on_favorite_change
             card.on_delete_change = lambda deleted_card=card: self._on_delete_change(deleted_card)
             card.on_progress_change = self._on_progress_change
-            self.cards.append(card)
+
             cont_book = card.get_cont(
                 title=book.title, description=book.description, index=book.id, cover=book.cover, data = book
-                )
+            )
+
             cont_book.col = {ft.ResponsiveRowBreakpoint.XS: 6,
                              ft.ResponsiveRowBreakpoint.SM: 4,
                              ft.ResponsiveRowBreakpoint.MD: 3,
                              ft.ResponsiveRowBreakpoint.LG: 12
-}
+                             }
+
+
+            self.cards.append(card)
             self._column.controls.append(cont_book)
 
-            self.page.update()
         self.loader.visible = False
         self._sort_cards()
         self.page.update()
