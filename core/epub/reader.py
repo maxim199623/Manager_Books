@@ -62,57 +62,47 @@ class EpubReader:
     def _html_to_text(self, value: str | None) -> str:
         if not value:
             return ""
-        soup = BeautifulSoup(value, "html5lib")
+
+        soup = BeautifulSoup(value, "lxml")
         root = soup.body or soup
-        parts: list[str] = []
+
         block_tags = {
-            "article",
-            "blockquote",
-            "div",
-            "footer",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "header",
-            "li",
-            "ol",
-            "p",
-            "section",
-            "table",
-            "tbody",
-            "td",
-            "tfoot",
-            "th",
-            "thead",
-            "tr",
-            "ul",
+            "article", "blockquote", "div", "footer",
+            "h1", "h2", "h3", "h4", "h5", "h6",
+            "header", "li", "ol", "p", "section",
+            "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul",
         }
 
-        def walk(node):
+        parts: list[str] = []
+        append = parts.append
+
+        def walk(node) -> None:
             if isinstance(node, NavigableString):
-                parts.append(str(node))
+                append(str(node))
                 return
 
             if not isinstance(node, Tag):
                 return
 
-            name = (node.name or "").lower()
+            name = node.name.lower() if node.name else ""
+
+            if name in {"script", "style", "noscript"}:
+                return
+
             if name == "br":
-                parts.append("\n")
+                append("\n")
                 return
 
             is_block = name in block_tags
+
             if is_block and parts and not parts[-1].endswith("\n"):
-                parts.append("\n")
+                append("\n")
 
             for child in node.children:
                 walk(child)
 
             if is_block:
-                parts.append("\n")
+                append("\n")
 
         for child in root.children:
             walk(child)
@@ -121,6 +111,7 @@ class EpubReader:
         text = re.sub(r"[ \t\r\f\v]*\n[ \t\r\f\v]*", "\n", text)
         text = re.sub(r"\n{3,}", "\n\n", text)
         text = re.sub(r"[ \t]{2,}", " ", text)
+
         return text.strip()
 
     def _split_title(self, title: str) -> list[str]:
