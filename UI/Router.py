@@ -66,7 +66,7 @@ class Router:
             self.state.changes_route("/login")
 
     def _on_book_change(self):
-        if self.state.current_book_id is not None:
+        if self.state.current_book_id is not None and self.state.is_authenticated:
             self.state.changes_route("/read")
         else:
             self.state.changes_route("/books")
