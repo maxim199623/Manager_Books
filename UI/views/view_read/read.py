@@ -55,7 +55,7 @@ class ReadView(BaseView):
         self.dialog_del.actions.append(get_button(text="Нет", func_but=self.dial_button, button_name={"id": _id,"button_name": "del_not"}))
 
     def _app_bar_settings(self):
-        self.app_bar.title = ft.Text(self.state.current_book.title)
+        self.app_bar.title = ft.Text(self.state.current_book.title) if not None else " "
         self.app_bar.center_title = True
         self.app_bar.leading = ft.IconButton(icon = ft.Icons.ARROW_BACK, on_click=self.state.clear_selected_book)
         self.app_bar.actions.append(ft.IconButton(icon = ft.Icons.LOGOUT, on_click=self.auth_logic.logout))
