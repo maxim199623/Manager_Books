@@ -1,3 +1,5 @@
+import asyncio
+
 import flet as ft
 
 from UI.views.BaseView import BaseView
@@ -289,9 +291,10 @@ class BooksView(BaseView):
 
             self.cards.append(card)
             self._column.controls.append(cont_book)
-            self._sort_cards(update=False)
+            self._sort_cards()
             #self._column.update()
             self.loader.update()
+            await asyncio.sleep(1)
 
         self.loader.visible = False
         self._sort_cards()
