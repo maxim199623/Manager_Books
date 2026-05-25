@@ -124,11 +124,11 @@ class BooksView(BaseView):
 
         return 0
 
-    def _sort_cards(self):
+    def _sort_cards(self, update:bool = True):
         self.cards.sort(key=self._get_sort_value, reverse=self.sort_desc)
         self._column.controls = [self.search_row, self.loader] + [card.cont for card in self.cards]
 
-        if self._column.page is not None:
+        if self._column.page is not None and update:
             self._column.update()
 
     def _setting_favorite_filter_button(self):
@@ -289,7 +289,7 @@ class BooksView(BaseView):
 
             self.cards.append(card)
             self._column.controls.append(cont_book)
-            self._sort_cards()
+            self._sort_cards(update=False)
             #self._column.update()
             self.loader.update()
 
