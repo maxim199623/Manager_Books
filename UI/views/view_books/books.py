@@ -287,9 +287,9 @@ class BooksView(BaseView):
                              ft.ResponsiveRowBreakpoint.LG: 12
                              }
 
-
             self.cards.append(card)
             self._column.controls.append(cont_book)
+            self._column.update()
             self.loader.update()
 
         self.loader.visible = False
