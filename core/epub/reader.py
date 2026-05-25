@@ -257,28 +257,109 @@ class EpubReader:
             chapters.append(Chapter(title=title, content=html))
         return chapters
 
+    def _append_extra_spine_content(
+            self,
+            read_book,
+            chapters: list[Chapter],
+            seen_hrefs: set[str],
+    ) -> None:
+        for item_id, linear in getattr(read_book, "spine", []):
+            if str(linear).lower() == "no":
+                continue
+
+            item = read_book.get_item_with_id(item_id)
+            if item is None or not hasattr(item, "get_body_content"):
+                continue
+
+            if self._is_auxiliary_spine_item(item, item_id):
+                continue
+
+            file_name = self._clean_href(getattr(item, "file_name", item_id))
+
+            if file_name in seen_hrefs:
+                continue
+
+            html = item.get_body_content().decode("utf-8", errors="ignore")
+            seen_hrefs.add(file_name)
+
+            if not self._has_chapter_text(html):
+                continue
+
+            if chapters:
+                chapters[-1].content += "\n\n" + html
+            else:
+                chapters.append(
+                    Chapter(
+                        title=Path(file_name).stem,
+                        content=html,
+                    )
+                )
+
+    def _get_toc_titles_by_href(self, read_book) -> dict[str, str]:
+        toc_titles: dict[str, str] = {}
+
+        for title, href in self._iter_toc_entries(getattr(read_book, "toc", [])):
+            clean_href = self._clean_href(href)
+
+            if not clean_href:
+                continue
+
+            toc_titles.setdefault(
+                clean_href,
+                title or Path(clean_href).stem,
+                )
+
+        return toc_titles
+
     def _load_chapters(self, read_book, cover: bytes | None = None) -> List[Chapter]:
         """Получаем список глав с названием и содержимым"""
         chapters = []
+        toc_titles = self._get_toc_titles_by_href(read_book)
         seen_hrefs = set()
-        for title, href in self._iter_toc_entries(getattr(read_book, "toc", [])):
-            clean_href = self._clean_href(href)
-            if clean_href in seen_hrefs:
+        current_chapter: Chapter | None = None
+        for item_id, linear in getattr(read_book, "spine", []):
+            if str(linear).lower() == "no":
                 continue
-            chapter_html = self._get_chapter(href, read_book)
-            if chapter_html is None:
+
+            item = read_book.get_item_with_id(item_id)
+            if item is None or not hasattr(item, "get_body_content"):
                 continue
-            seen_hrefs.add(clean_href)
-            if not self._has_chapter_text(chapter_html):
+
+            if self._is_auxiliary_spine_item(item, item_id):
                 continue
-            chapters.append(
-                Chapter(title=title or Path(clean_href).stem, content=chapter_html)
+
+            file_name = self._clean_href(getattr(item, "file_name", item_id))
+
+            if not file_name or file_name in seen_hrefs:
+                continue
+
+            seen_hrefs.add(file_name)
+
+            html = item.get_body_content().decode("utf-8", errors="ignore")
+
+            if not self._has_chapter_text(html):
+                continue
+
+            toc_title = toc_titles.get(file_name)
+
+            if toc_title is not None:
+                current_chapter = Chapter(
+                    title=toc_title,
+                    content=html,
+                )
+                chapters.append(current_chapter)
+                continue
+
+            if current_chapter is not None:
+                current_chapter.content += "\n\n" + html
+                continue
+
+            current_chapter = Chapter(
+                title=Path(file_name).stem,
+                content=html,
             )
+            chapters.append(current_chapter)
 
-        chapters.extend(self._load_spine_chapters(read_book, seen_hrefs=seen_hrefs))
-
-        if cover is not None and (not chapters or chapters[0].title != "Постер"):
-            chapters.insert(0, Chapter(title="Постер", content=""))
         return chapters
 
     def load(self, path: str | None = None, data:bytes = None) -> Book:
