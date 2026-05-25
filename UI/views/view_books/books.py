@@ -294,7 +294,7 @@ class BooksView(BaseView):
             self._sort_cards()
             #self._column.update()
             self.loader.update()
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.2)
 
         self.loader.visible = False
         self._sort_cards()
