@@ -59,6 +59,15 @@ class EpubReader:
             if value and value.strip()
         ]
 
+    def _has_chapter_text(self, html: str | None) -> bool:
+        if not html:
+            return False
+
+        text = self._html_to_text(html)
+        text = text.replace("\xa0", " ").strip()
+
+        return bool(text)
+
     def _html_to_text(self, value: str | None) -> str:
         if not value:
             return ""
@@ -241,8 +250,10 @@ class EpubReader:
             if file_name in seen_hrefs:
                 continue
             html = item.get_body_content().decode("utf-8", errors="ignore")
-            title = Path(file_name).stem
             seen_hrefs.add(file_name)
+            if not self._has_chapter_text(html):
+                continue
+            title = Path(file_name).stem
             chapters.append(Chapter(title=title, content=html))
         return chapters
 
@@ -258,6 +269,8 @@ class EpubReader:
             if chapter_html is None:
                 continue
             seen_hrefs.add(clean_href)
+            if not self._has_chapter_text(chapter_html):
+                continue
             chapters.append(
                 Chapter(title=title or Path(clean_href).stem, content=chapter_html)
             )
