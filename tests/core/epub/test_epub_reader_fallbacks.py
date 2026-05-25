@@ -556,3 +556,21 @@ def test_load_chapters_does_not_prepend_synthetic_poster_when_first_chapter_is_a
 
     assert [chapter.title for chapter in chapters] == ["Постер", "Глава 1"]
     assert chapters[0].content == "<p>Реальный постер</p>"
+
+
+def test_load_chapters_spine_fallback_skips_non_linear_items():
+    reader = EpubReader()
+    notes_item = DummyHtmlItem("notes.xhtml", "<p>Примечания</p>")
+    chapter_item = DummyHtmlItem("chapter1.xhtml", "<p>Глава 1</p>")
+    book = DummyBookWithChapters(
+        toc=[],
+        href_map={},
+        spine=[("notes", "no"), ("chapter-1", "yes")],
+        id_map={"notes": notes_item, "chapter-1": chapter_item},
+    )
+
+    chapters = reader._load_chapters(book)
+
+    assert len(chapters) == 1
+    assert chapters[0].title == "chapter1"
+    assert chapters[0].content == "<p>Глава 1</p>"

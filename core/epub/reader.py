@@ -238,7 +238,9 @@ class EpubReader:
     def _load_spine_chapters(self, read_book, seen_hrefs: set[str] | None = None) -> List[Chapter]:
         chapters = []
         seen_hrefs = seen_hrefs or set()
-        for item_id, _linear in getattr(read_book, "spine", []):
+        for item_id, linear in getattr(read_book, "spine", []):
+            if str(linear).lower() == "no":
+                continue
             item = read_book.get_item_with_id(item_id)
             if item is None or not hasattr(item, "get_body_content"):
                 continue
