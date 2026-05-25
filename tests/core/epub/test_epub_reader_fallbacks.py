@@ -40,6 +40,21 @@ class DummyItem:
         return self._content
 
 
+class DummyHtmlItem:
+    def __init__(self, file_name, html):
+        self.file_name = file_name
+        self._html = html
+
+    def get_body_content(self):
+        return self._html.encode("utf-8")
+
+
+class DummyLink:
+    def __init__(self, title, href):
+        self.title = title
+        self.href = href
+
+
 class DummyBookWithCover(DummyBook):
     def __init__(self, metadata_map, metadata, by_id, items):
         combined_metadata_map = dict(metadata_map)
@@ -56,6 +71,21 @@ class DummyBookWithCover(DummyBook):
 
     def get_items(self):
         return iter(self._items)
+
+
+class DummyBookWithChapters(DummyBook):
+    def __init__(self, toc, href_map, spine, id_map):
+        super().__init__({})
+        self.toc = toc
+        self._href_map = href_map
+        self.spine = spine
+        self._id_map = id_map
+
+    def get_item_with_href(self, href):
+        return self._href_map.get(href)
+
+    def get_item_with_id(self, item_id):
+        return self._id_map.get(item_id)
 
 
 def test_load_metadata_returns_safe_defaults_when_fields_missing():
@@ -315,3 +345,214 @@ def test_load_cover_uses_default_asset_when_epub_has_no_cover():
     expected = (Path(__file__).resolve().parents[3] / "assets" / "cover.png").read_bytes()
 
     assert reader._load_cover(book) == expected
+
+
+def test_load_chapters_strips_href_anchor_and_keeps_html():
+    reader = EpubReader()
+    item = DummyHtmlItem("chapter1.xhtml", "<h1>Глава 1</h1><p>Текст</p>")
+    book = DummyBookWithChapters(
+        toc=[DummyLink("Глава 1", "chapter1.xhtml#part-1")],
+        href_map={"chapter1.xhtml": item},
+        spine=[],
+        id_map={},
+    )
+
+    chapters = reader._load_chapters(book)
+
+    assert len(chapters) == 1
+    assert chapters[0].title == "Глава 1"
+    assert chapters[0].content == "<h1>Глава 1</h1><p>Текст</p>"
+
+
+def test_load_chapters_falls_back_to_spine_and_adds_poster_with_normalized_cover():
+    reader = EpubReader()
+    spine_item = DummyHtmlItem("chapter2.xhtml", "<p>Текст главы</p>")
+    book = DummyBookWithChapters(
+        toc=[],
+        href_map={},
+        spine=[("chapter-2", "yes")],
+        id_map={"chapter-2": spine_item},
+    )
+
+    chapters = reader._load_chapters(book, cover=b"default-cover")
+
+    assert chapters[0].title == "Постер"
+    assert chapters[0].content == ""
+    assert chapters[1].title == "chapter2"
+    assert chapters[1].content == "<p>Текст главы</p>"
+
+
+def test_load_chapters_flattens_nested_toc_entries():
+    reader = EpubReader()
+    chapter_item = DummyHtmlItem("chapter1.xhtml", "<p>Вложенная глава</p>")
+    book = DummyBookWithChapters(
+        toc=[
+            (
+                DummyLink("Раздел", None),
+                [DummyLink("Глава 1", "chapter1.xhtml#fragment")],
+            )
+        ],
+        href_map={"chapter1.xhtml": chapter_item},
+        spine=[],
+        id_map={},
+    )
+
+    chapters = reader._load_chapters(book)
+
+    assert len(chapters) == 1
+    assert chapters[0].title == "Глава 1"
+    assert chapters[0].content == "<p>Вложенная глава</p>"
+
+
+def test_load_chapters_deduplicates_same_cleaned_href_from_multiple_toc_entries():
+    reader = EpubReader()
+    chapter_item = DummyHtmlItem("chapter1.xhtml", "<p>Общий XHTML</p>")
+    book = DummyBookWithChapters(
+        toc=[
+            DummyLink("Глава 1", "chapter1.xhtml#part-1"),
+            DummyLink("Глава 1 дубль", "chapter1.xhtml#part-2"),
+        ],
+        href_map={"chapter1.xhtml": chapter_item},
+        spine=[],
+        id_map={},
+    )
+
+    chapters = reader._load_chapters(book)
+
+    assert len(chapters) == 1
+    assert chapters[0].title == "Глава 1"
+    assert chapters[0].content == "<p>Общий XHTML</p>"
+
+
+def test_load_passes_normalized_cover_into_load_chapters(monkeypatch):
+    reader = EpubReader()
+    dummy_book = object()
+    observed = {}
+
+    def fake_load_book(path):
+        observed["path"] = path
+        return dummy_book, b"epub-bytes"
+
+    def fake_load_metadata(read_book):
+        observed["metadata_book"] = read_book
+        return ["Название"], "Автор", "Описание"
+
+    def fake_load_cover(read_book):
+        observed["cover_book"] = read_book
+        return b"normalized-cover"
+
+    def fake_load_chapters(read_book, cover=None):
+        observed["chapters_book"] = read_book
+        observed["cover"] = cover
+        return []
+
+    monkeypatch.setattr(reader, "_load_book", fake_load_book)
+    monkeypatch.setattr(reader, "_load_metadata", fake_load_metadata)
+    monkeypatch.setattr(reader, "_load_cover", fake_load_cover)
+    monkeypatch.setattr(reader, "_load_chapters", fake_load_chapters)
+
+    book = reader.load(path="book.epub")
+
+    assert observed["path"] == "book.epub"
+    assert observed["metadata_book"] is dummy_book
+    assert observed["cover_book"] is dummy_book
+    assert observed["chapters_book"] is dummy_book
+    assert observed["cover"] == b"normalized-cover"
+    assert book.cover == b"normalized-cover"
+
+
+def test_load_chapters_supplements_partial_toc_from_spine_without_duplicates():
+    reader = EpubReader()
+    chapter1 = DummyHtmlItem("chapter1.xhtml", "<p>Глава 1</p>")
+    chapter2 = DummyHtmlItem("chapter2.xhtml", "<p>Глава 2</p>")
+    book = DummyBookWithChapters(
+        toc=[
+            DummyLink("Глава 1", "chapter1.xhtml#toc"),
+            DummyLink("Глава 2", "missing.xhtml#toc"),
+        ],
+        href_map={"chapter1.xhtml": chapter1},
+        spine=[("chapter-1", "yes"), ("chapter-2", "yes")],
+        id_map={"chapter-1": chapter1, "chapter-2": chapter2},
+    )
+
+    chapters = reader._load_chapters(book)
+
+    assert [chapter.title for chapter in chapters] == ["Глава 1", "chapter2"]
+    assert [chapter.content for chapter in chapters] == ["<p>Глава 1</p>", "<p>Глава 2</p>"]
+
+
+def test_load_chapters_spine_fallback_skips_auxiliary_nav_toc_and_cover_items():
+    reader = EpubReader()
+    nav_item = DummyHtmlItem("nav.xhtml", "<nav>Навигация</nav>")
+    toc_item = DummyHtmlItem("toc.xhtml", "<nav>Оглавление</nav>")
+    cover_item = DummyHtmlItem("cover.xhtml", "<p>Обложка</p>")
+    chapter_item = DummyHtmlItem("chapter3.xhtml", "<p>Основная глава</p>")
+    book = DummyBookWithChapters(
+        toc=[],
+        href_map={},
+        spine=[
+            ("nav", "yes"),
+            ("toc", "yes"),
+            ("cover", "yes"),
+            ("chapter-3", "yes"),
+        ],
+        id_map={
+            "nav": nav_item,
+            "toc": toc_item,
+            "cover": cover_item,
+            "chapter-3": chapter_item,
+        },
+    )
+
+    chapters = reader._load_chapters(book)
+
+    assert len(chapters) == 1
+    assert chapters[0].title == "chapter3"
+    assert chapters[0].content == "<p>Основная глава</p>"
+
+
+def test_load_chapters_adds_synthetic_poster_when_real_poster_title_is_not_first():
+    reader = EpubReader()
+    intro_item = DummyHtmlItem("intro.xhtml", "<p>Вступление</p>")
+    poster_named_item = DummyHtmlItem("poster-chapter.xhtml", "<p>Реальная глава</p>")
+    book = DummyBookWithChapters(
+        toc=[
+            DummyLink("Вступление", "intro.xhtml"),
+            DummyLink("Постер", "poster-chapter.xhtml"),
+        ],
+        href_map={
+            "intro.xhtml": intro_item,
+            "poster-chapter.xhtml": poster_named_item,
+        },
+        spine=[],
+        id_map={},
+    )
+
+    chapters = reader._load_chapters(book, cover=b"default-cover")
+
+    assert [chapter.title for chapter in chapters] == ["Постер", "Вступление", "Постер"]
+    assert chapters[0].content == ""
+    assert chapters[2].content == "<p>Реальная глава</p>"
+
+
+def test_load_chapters_does_not_prepend_synthetic_poster_when_first_chapter_is_already_poster():
+    reader = EpubReader()
+    poster_item = DummyHtmlItem("poster.xhtml", "<p>Реальный постер</p>")
+    chapter_item = DummyHtmlItem("chapter1.xhtml", "<p>Глава 1</p>")
+    book = DummyBookWithChapters(
+        toc=[
+            DummyLink("Постер", "poster.xhtml"),
+            DummyLink("Глава 1", "chapter1.xhtml"),
+        ],
+        href_map={
+            "poster.xhtml": poster_item,
+            "chapter1.xhtml": chapter_item,
+        },
+        spine=[],
+        id_map={},
+    )
+
+    chapters = reader._load_chapters(book, cover=b"default-cover")
+
+    assert [chapter.title for chapter in chapters] == ["Постер", "Глава 1"]
+    assert chapters[0].content == "<p>Реальный постер</p>"
