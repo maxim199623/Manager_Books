@@ -290,6 +290,7 @@ class BooksView(BaseView):
 
             self.cards.append(card)
             self._column.controls.append(cont_book)
+            self.loader.update()
 
         self.loader.visible = False
         self._sort_cards()
