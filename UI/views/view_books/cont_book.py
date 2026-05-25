@@ -110,7 +110,7 @@ class Book_cont:
         self.dialog_del.actions.append(get_button(text="Нет", func_but=self.dial_button, button_name={"id": _id,"button_name": "del_not"}))
 
     def _settings_cont(self, index, book):
-        if book.created_at >= datetime.now() - timedelta(days=3):
+        if book.created_at >= datetime.now() - timedelta(days=2):
             self.cont.border = ft.border.all(2, ft.Colors.PRIMARY)
         else:
             self.cont.border = ft.border.all(2, ft.Colors.ON_PRIMARY)
@@ -119,11 +119,19 @@ class Book_cont:
         self.cont.padding=10
         self.cont.bgcolor = ft.Colors.ON_PRIMARY
         self.cont.on_hover=self.on_hover
-        self.cont.data = {"index": index,
-                          "book":book}
         self.cont.on_click = self.click_book
-
+        self.cont.scale = 1.0
         self.cont.animate_scale = ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT)
+
+        self.cont.shadow = ft.BoxShadow(
+            spread_radius=0,
+            blur_radius=6,
+            color=ft.Colors.BLACK12,
+        )
+        self.cont.data = {"index": index,
+                          "book":book,
+                          "hovered": False,}
+
 
     def _base_container(self, content=None, padding=10, height=None, width=None, expand=False):
         if self.page.web:
@@ -260,20 +268,8 @@ class Book_cont:
         self.min_view.visible = is_small
 
 
-    def on_hover(self,e):
-        """Наведение курсора на контейнер"""
-        ic()
-        ic(e)
-        if e.data:
-            e.control.scale = 1.01
-            e.control.shadow = ft.BoxShadow(
-                spread_radius=1,
-                blur_radius=15,
-                color=ft.Colors.BLUE_GREY_300)
-        else:
-            e.control.shadow = None
-            e.control.scale = 1.0
-        e.control.update()
+    def on_hover(self, e):
+        pass
 
     def del_button(self, e):
         """Кнопка удаления книги"""

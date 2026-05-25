@@ -288,6 +288,7 @@ class BooksView(BaseView):
 
             self.page.update()
         self.loader.visible = False
+        self._sort_cards()
         self.page.update()
 
 
