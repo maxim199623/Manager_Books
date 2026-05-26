@@ -292,14 +292,13 @@ class BooksView(BaseView):
             self.cards.append(card)
             self._column.controls.append(cont_book)
             self._sort_cards(update=False)
-            #self._column.update()
+            self._column.update()
             self.loader.update()
             #await asyncio.sleep(0.15)
 
         self.loader.visible = False
         #self._sort_cards()
-        #self.page.update()
-        self._column.update()
+        self.page.update()
 
 
     def _page_resize(self):
