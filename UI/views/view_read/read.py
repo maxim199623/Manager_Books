@@ -202,7 +202,6 @@ class ReadView(BaseView):
     def _parser(description):
         html = description.replace("&#13;", "").replace("\r", "")
         soup = BeautifulSoup(html, "html5lib")
-        # 1) Склейка  <i>
         for p in soup.find_all("p"):
             tags = [c for c in p.children if isinstance(c, Tag)]
             if tags and all(t.name == "i" for t in tags):
@@ -212,11 +211,9 @@ class ReadView(BaseView):
                 p.clear()
                 p.append(soup.new_tag("i"))
                 p.i.string = text
-        # 2) Пробелы — после склейки
         for node in soup.find_all(string=True):
             if isinstance(node, NavigableString) and getattr(node.parent, "name", None) not in ("script", "style"):
                 node.replace_with(" ".join(str(node).split()))
-        # 3) [ Системное сообщение ] без <i> → в <i> для стиля
         for p in soup.find_all("p"):
             t = " ".join(p.get_text().split())
             if t.startswith("[") and t.endswith("]") and not p.find("i"):
@@ -255,6 +252,7 @@ class ReadView(BaseView):
         system = body.copy(italic=False, color=ft.Colors.SECONDARY)
 
         center = ft.MainAxisAlignment.CENTER
+        quote = body.copy(italic=True, color=ft.Colors.ON_PRIMARY_CONTAINER)
         md_style_sheet = ft.MarkdownStyleSheet(p_text_style=body,
                                                h1_text_style=body.copy(size=self.text_size + 12, weight=ft.FontWeight.BOLD),
                                                h1_alignment=center,
@@ -264,6 +262,15 @@ class ReadView(BaseView):
                                                h3_alignment=center,
                                                em_text_style=system,
                                                strong_text_style=body.copy(weight=ft.FontWeight.BOLD),
+                                               blockquote_text_style=quote,
+                                               blockquote_alignment=ft.MainAxisAlignment.START,
+                                               blockquote_padding=ft.Padding.only(left=16, top=12, right=16, bottom=12),
+                                               blockquote_decoration=ft.BoxDecoration(
+                                                   bgcolor=ft.Colors.PRIMARY_CONTAINER,
+                                                   border=ft.Border.only(
+                                                       left=ft.BorderSide(width=4, color=ft.Colors.PRIMARY),
+                                                   ),
+                                               ),
                                                block_spacing=10,
                                                p_padding=ft.padding.only(bottom=8)
                                                )
