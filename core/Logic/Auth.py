@@ -22,6 +22,7 @@ class AuthLogic:
 
     async def login(self, email: str, password: str) -> None:
         try:
+            
             data = await self.api.login(email, password)
             payload = jwt.decode(data.access_token, options={"verify_signature": False})
             user = User.model_validate(payload)
@@ -29,6 +30,7 @@ class AuthLogic:
                 await self.ws.connect(data.access_token, self.api.base_url)
             self.state.set_user(user)
             logger.info("Вход выполнен успешно", extra={"user_id": str(user.id)})
+
         except UnauthorizedError:
             logger.warning("Вход отклонён", extra={"email": email})
             if email != "default@default.ru":
@@ -58,8 +60,14 @@ class AuthLogic:
     async def logout(self):
         if self.ws:
             await self.ws.close()
-        await self.api.logout()
-        self.state.clear_user()
+        try:
+            if self.api.token:
+                await self.api.logout()
+        except Exception:
+            logger.exception("Ошибка при выходе на сервере, локальная сессия будет очищена")
+        finally:
+            self.api.token = None
+            self.state.clear_user()
 
 
 

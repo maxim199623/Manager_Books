@@ -69,4 +69,12 @@ class ChapterReadCount(BaseModel):
     book_id: uuid.UUID
     read_chapters: int
 
+class BookChapterListRead(BaseModel):
+    chapter: int
+    chapter_name: Optional[str] = None
+
+
+class ReadChaptersResponse(BaseModel):
+    chapters: List[int]
+
 

@@ -5,13 +5,15 @@ import asyncio
 import mimetypes
 
 import httpx
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from core.Http_Client.base import map_http_error
 from core.Http_Client.schemas.base_metod import HTTPMethod
 from core.Http_Client.schemas.users import TokenResponse, UserCreate, UserRead, UserPatch
-from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate
-from core.Http_Client.schemas.chapter import ChapterCreate, ChapterRead, ChapterCount, ChapterReadCount, ChapterPatch
+from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate, BookCreateResponse, BookChapterListRead, \
+    BookFilePayload
+from core.Http_Client.schemas.chapter import ChapterCreate, ChapterRead, ChapterCount, ChapterReadCount, ChapterPatch, \
+    ReadChaptersResponse
 
 logger = logging.getLogger("app")
 
@@ -20,6 +22,8 @@ class ApiClient:
     """
     HTTP-клиент.
     """
+    SortBy = Literal["created_at", "progress", "title"]
+    SortDir = Literal["asc", "desc"]
 
     def __init__(self, base_url: str):
         try:
@@ -63,21 +67,22 @@ class ApiClient:
                             expected_status=204)
 
 
-    async def patch_user(self, user_id: int, user: UserPatch) -> None:
+    async def patch_user(self, user_id: uuid.UUID, user: UserPatch) -> None:
         await self._request(method=HTTPMethod.PATCH,
                                    url=f"/users/{user_id}",
-                                   json=user.model_dump(),
+                                   json=user.model_dump(exclude_none=True),
                                    expected_status=200)
 
-    async def add_book(self, book: BookCreate):
+    async def add_book(self, book: BookCreate) -> BookCreateResponse:
         data, files = self._build_book_payload(book)
-        return await self._request(
+        resp = await self._request(
             method=HTTPMethod.POST,
             url="/books/add_book",
             data=data,
             files=files,
             expected_status=201,
         )
+        return BookCreateResponse(**resp)
 
     async def favorite_book(self, book_id: uuid.UUID) -> None:
        resp = await self._request(method=HTTPMethod.POST,
@@ -95,8 +100,17 @@ class ApiClient:
 
     async def get_books(self,
                         author: Optional[str] = None,
-                        series: Optional[str] = None) -> List[BookRead]:
-        params = {}
+                        series: Optional[str] = None,
+                        offset: int = 0, limit: int = 100,
+                        sort_by: SortBy = "created_at",
+                        sort_dir: SortDir = "desc") -> List[BookRead]:
+        params = {
+            "offset": offset,
+            "limit": limit,
+            "sort_by": sort_by,
+            "sort_dir": sort_dir,
+        }
+
         if author is not None:
             params["author"] = author
         if series is not None:
@@ -109,6 +123,7 @@ class ApiClient:
         books = [BookRead(**b) for b in resp]
         await self._prefetch_book_covers(books)
         return books
+
 
     async def patch_book(self, book_id: uuid.UUID, book: BookUpdate) -> None:
         await self._request(method=HTTPMethod.PATCH,
@@ -136,6 +151,14 @@ class ApiClient:
                                    expected_status=200)
         return ChapterRead(**resp)
 
+    async def get_chapters(self, book_id: uuid.UUID) -> List[BookChapterListRead]:
+        resp = await self._request(
+            method=HTTPMethod.GET,
+            url=f"/books/{book_id}/chapters",
+            expected_status=200,
+        )
+        return [BookChapterListRead(**chapter) for chapter in resp]
+
     async def get_chapters_num(self, book_id: uuid.UUID) -> ChapterCount:
         resp = await self._request(method=HTTPMethod.GET,
                                    url=f"/books/{book_id}/chapters/count",
@@ -148,12 +171,18 @@ class ApiClient:
                                    expected_status=200)
         return ChapterReadCount(**resp)
 
-    async def get_read_chapters_in_book(self, book_id: uuid.UUID) -> List[int]:
+    async def get_read_chapters_in_book(self, book_id: uuid.UUID,
+                                        offset: int = 0,
+                                        limit: int = 100) -> ReadChaptersResponse:
+        params = {"offset": offset,
+                  "limit": limit}
+        if book_id is not None:
+            params["book_id"] = book_id
         resp = await self._request(method=HTTPMethod.GET,
                                    url=f"/books/chapters/read",
-                                   params={"book_id":book_id},
+                                   params=params,
                                    expected_status=200)
-        return resp
+        return ReadChaptersResponse(chapters=resp)
 
     async def delete_history_read_chapters_in_book(self, book_id: uuid.UUID) -> None:
         await self._request(method=HTTPMethod.DELETE,
@@ -174,12 +203,34 @@ class ApiClient:
             return_bytes=True,
         )
 
-    async def get_book_file(self, book_id: uuid.UUID):
-        return await self._request(
+    async def update_book_cover(self, book_id: uuid.UUID, cover: bytes) -> None:
+        cover_name, cover_mime = self._guess_cover_upload(cover)
+        await self._request(
+            method=HTTPMethod.PUT,
+            url=f"/books/{book_id}/cover",
+            files={"cover": (cover_name, cover, cover_mime)},
+            expected_status=204,
+        )
+
+    async def get_book_file(self, book_id: uuid.UUID) -> BookFilePayload:
+        content = await self._request(
             method=HTTPMethod.GET,
             url=f"/books/{book_id}/file",
             expected_status=200,
             return_bytes=True,
+        )
+        return BookFilePayload(content=content)
+
+    async def update_book_file(self,book_id: uuid.UUID,
+                                    file_payload: bytes,
+                                    file_name: str,
+                                    file_mime: str | None = None) -> None:
+        mime = file_mime or mimetypes.guess_type(file_name)[0] or "application/octet-stream"
+        await self._request(
+            method=HTTPMethod.PUT,
+            url=f"/books/{book_id}/file",
+            files={"file": (file_name, file_payload, mime)},
+            expected_status=204,
         )
 
 
@@ -262,6 +313,7 @@ class ApiClient:
                        ):
         ic()
         ic(f"Запрос {method} на {url}")
+        logger.debug("Запрос API", extra={"method": method.value, "url": url})
         resp = await self._client.request(
             method.value,
             url,

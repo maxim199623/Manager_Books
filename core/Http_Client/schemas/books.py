@@ -6,6 +6,16 @@ from typing import Optional
 from base64 import b64encode , b64decode
 
 
+class BookCreateResponse(BaseModel):
+    id: uuid.UUID
+
+class BookChapterListRead(BaseModel):
+    chapter: int
+    chapter_name: Optional[str] = None
+
+class BookFilePayload(BaseModel):
+    content: bytes
+
 class BookCreate(BaseModel):
     title: str
     author: Optional[str] = None

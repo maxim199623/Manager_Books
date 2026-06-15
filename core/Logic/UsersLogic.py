@@ -44,6 +44,9 @@ class UsersLogic(ApiLogic):
 
     async def patch_user(self, user_id, user: UserPatch) -> bool:
         try:
+            if not user.model_dump(exclude_none=True):
+                self._notify("Нет данных для изменения пользователя.")
+                return False
             await self.api.patch_user(user_id=user_id, user=user)
             return True
         except Exception as exc:

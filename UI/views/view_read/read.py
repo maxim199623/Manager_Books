@@ -180,8 +180,9 @@ class ReadView(BaseView):
         history = await self.chapters_logic.get_read_chapters_in_book(self.state.current_book_id)
         if history is None:
             return None
-        ic(sorted(history))
-        return sorted(history)
+        chapters = sorted(history.chapters)
+        ic(chapters)
+        return chapters
 
 
     async def _get_chapter(self, index):

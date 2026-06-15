@@ -305,9 +305,10 @@ class Book_cont:
         try:
             payload = book.file
             if payload is None:
-                payload = await self.books_logic.get_book_file(book.id)
-                if payload is None:
+                file_payload = await self.books_logic.get_book_file(book.id)
+                if file_payload is None:
                     return
+                payload = file_payload.content
                 book.file = payload
                 self.cont.data["book"] = book
 

@@ -178,10 +178,10 @@ class AdminView(BaseView):
             book, chapters = self.add_epub()
         else:
             book, chapters = self.add_other_books()
-        id_book = await self.books_logic.add_book(book)
-        if id_book is not None and chapters is not None:
+        created = await self.books_logic.add_book(book)
+        if created is not None and chapters is not None:
             ic(chapters)
-            await self.chapters_logic.add_chapters(book_id=id_book["id"], chapters=chapters)
+            await self.chapters_logic.add_chapters(book_id=created.id, chapters=chapters)
 
     def add_epub(self):
         book = BookCreate(title=self.book.title,

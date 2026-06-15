@@ -1,3 +1,4 @@
+from core.Http_Client.schemas.chapter import ChapterPatch, BookChapterListRead, ReadChaptersResponse
 from core.Logic.ApiLogic import ApiLogic
 
 
@@ -26,6 +27,17 @@ class ChaptersLogic(ApiLogic):
             )
             return None
 
+    async def get_chapters(self, book_id) -> list[BookChapterListRead] | None:
+        try:
+            return await self.api.get_chapters(book_id=book_id)
+        except Exception as exc:
+            self._handle_api_error(
+                exc,
+                default_message="Не удалось загрузить список глав.",
+                not_found_message="Книга не найдена.",
+            )
+            return None
+
     async def get_chapters_num(self, book_id):
         try:
             return await self.api.get_chapters_num(book_id=book_id)
@@ -48,7 +60,7 @@ class ChaptersLogic(ApiLogic):
             )
             return None
 
-    async def get_read_chapters_in_book(self, book_id):
+    async def get_read_chapters_in_book(self, book_id) -> ReadChaptersResponse | None:
         try:
             return await self.api.get_read_chapters_in_book(book_id=book_id)
         except Exception as exc:
@@ -68,5 +80,23 @@ class ChaptersLogic(ApiLogic):
                 exc,
                 default_message="Не удалось очистить историю чтения. Повторите попытку.",
                 not_found_message="Книга не найдена.",
+            )
+            return False
+
+    async def patch_chapter(self, book_id, chapter_num: int, chapter: ChapterPatch) -> bool:
+        try:
+            if not chapter.model_dump(exclude_none=True):
+                self._notify("Нет данных для изменения главы.")
+                return False
+            await self.api.patch_chapter(book_id, chapter_num, chapter)
+            return True
+        except Exception as exc:
+            self._handle_api_error(
+                exc,
+                default_message="Не удалось изменить главу.",
+                forbidden_message="У вас нет прав на изменение глав.",
+                not_found_message="Глава не найдена.",
+                validation_message="Проверьте данные главы.",
+                unprocessable_message="Проверьте данные главы.",
             )
             return False

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from core.Http_Client.websocket_client import WebSocketClient
 from UI.Router import Router
-from core.Auth import AuthLogic
+from core.Logic.Auth import AuthLogic
 from core.Logic.BooksLogic import BooksLogic
 from core.Logic.ChaptersLogic import ChaptersLogic
 from core.Http_Client.client import ApiClient
