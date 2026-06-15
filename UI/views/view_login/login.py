@@ -24,9 +24,15 @@ class LoginView(BaseView):
         self.email  = self._get_text_field(label="Email")
         self.password = self._get_text_field(label="Password", password=True)
         self.login_button = self._get_button(text="Войти", func=self._on_login_click)
+        self.email.on_submit = self._change_focus
+        self.password.on_submit = self._on_login_click
         self.loader = ft.ProgressRing(visible=False)
         self._auto_login_started = False
         self.page.run_task(self._try_default_login)
+
+    async def _change_focus(self,e):
+        await self.password.focus()
+        self.page.update()
 
     def _page_resize(self):
         pass
