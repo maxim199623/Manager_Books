@@ -3,9 +3,10 @@ from core.Logic.ApiLogic import ApiLogic
 
 
 class ChaptersLogic(ApiLogic):
-    async def add_chapters(self, book_id, chapters):
+    async def add_chapters(self, book_id, chapters) -> bool:
         try:
-            return await self.api.add_chapters(book_id=book_id, chapters=chapters)
+             await self.api.add_chapters(book_id=book_id, chapters=chapters)
+             return True
         except Exception as exc:
             self._handle_api_error(
                 exc,
@@ -14,7 +15,7 @@ class ChaptersLogic(ApiLogic):
                 unprocessable_message="Не удалось загрузить главы книги. Проверьте данные EPUB.",
                 validation_message="Не удалось загрузить главы книги. Проверьте данные EPUB.",
             )
-            return None
+            return False
 
     async def get_chapter(self, book_id, chapter_num):
         try:
@@ -60,14 +61,17 @@ class ChaptersLogic(ApiLogic):
             )
             return None
 
-    async def get_read_chapters_in_book(self, book_id) -> ReadChaptersResponse | None:
+    async def get_read_chapters_in_book(self, book_id=None, offset: int = 0,
+                                        limit: int = 100) -> ReadChaptersResponse | None:
         try:
-            return await self.api.get_read_chapters_in_book(book_id=book_id)
+            return await self.api.get_read_chapters_in_book(book_id=book_id,offset=offset,limit=limit)
         except Exception as exc:
             self._handle_api_error(
                 exc,
                 default_message="Не удалось загрузить историю чтения.",
                 not_found_message="Книга не найдена.",
+                validation_message="Некорректные параметры истории чтения.",
+                unprocessable_message="Некорректные параметры истории чтения.",
             )
             return None
 

@@ -16,6 +16,9 @@ class BookChapterListRead(BaseModel):
 class BookFilePayload(BaseModel):
     content: bytes
 
+class BookCoverPayload(BaseModel):
+    content: bytes
+
 class BookCreate(BaseModel):
     title: str
     author: Optional[str] = None

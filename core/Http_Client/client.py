@@ -11,7 +11,7 @@ from core.Http_Client.base import map_http_error
 from core.Http_Client.schemas.base_metod import HTTPMethod
 from core.Http_Client.schemas.users import TokenResponse, UserCreate, UserRead, UserPatch
 from core.Http_Client.schemas.books import BookCreate, BookRead, BookUpdate, BookCreateResponse, BookChapterListRead, \
-    BookFilePayload
+    BookFilePayload, BookCoverPayload
 from core.Http_Client.schemas.chapter import ChapterCreate, ChapterRead, ChapterCount, ChapterReadCount, ChapterPatch, \
     ReadChaptersResponse
 
@@ -171,7 +171,7 @@ class ApiClient:
                                    expected_status=200)
         return ChapterReadCount(**resp)
 
-    async def get_read_chapters_in_book(self, book_id: uuid.UUID,
+    async def get_read_chapters_in_book(self, book_id: uuid.UUID | None = None,
                                         offset: int = 0,
                                         limit: int = 100) -> ReadChaptersResponse:
         params = {"offset": offset,
@@ -195,13 +195,14 @@ class ApiClient:
                             json=chapter.model_dump(exclude_none=True),
                             expected_status=200)
 
-    async def get_book_cover(self, book_id: uuid.UUID):
-        return await self._request(
+    async def get_book_cover(self, book_id: uuid.UUID) -> BookCoverPayload:
+        content = await self._request(
             method=HTTPMethod.GET,
             url=f"/books/{book_id}/cover",
             expected_status=200,
             return_bytes=True,
         )
+        return BookCoverPayload(content=content)
 
     async def update_book_cover(self, book_id: uuid.UUID, cover: bytes) -> None:
         cover_name, cover_mime = self._guess_cover_upload(cover)
@@ -246,7 +247,8 @@ class ApiClient:
             if book.cover_size <= 0:
                 return
             async with semaphore:
-                book.cover = await self.get_book_cover(book.id)
+                cover = await self.get_book_cover(book.id)
+                book.cover = cover.content
 
         await asyncio.gather(*(load_cover(book) for book in books))
 

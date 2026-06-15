@@ -1,8 +1,13 @@
+from typing import Literal
+
 from core.Logic.ApiLogic import ApiLogic
-from core.Http_Client.schemas.books import BookCreate, BookUpdate, BookCreateResponse, BookRead, BookFilePayload
+from core.Http_Client.schemas.books import BookCreate, BookUpdate, BookCreateResponse, BookRead, BookFilePayload, \
+    BookCoverPayload
 
 
 class BooksLogic(ApiLogic):
+    SortBy = Literal["created_at", "progress", "title"]
+    SortDir = Literal["asc", "desc"]
     async def add_book(self, book: BookCreate) -> BookCreateResponse | None:
         try:
             return await self.api.add_book(book)
@@ -41,13 +46,20 @@ class BooksLogic(ApiLogic):
             )
             return False
 
-    async def get_books(self, author=None, series=None) -> list[BookRead] | None:
+    async def get_books(self, author=None, series=None,
+                              offset: int = 0, limit: int = 100,
+                              sort_by: SortBy = "created_at",
+                              sort_dir: SortDir = "desc",
+                        ) -> list[BookRead] | None:
         try:
-            return await self.api.get_books(author=author, series=series)
+            return await self.api.get_books(author=author, series=series, offset=offset,
+                                            limit=limit, sort_by=sort_by, sort_dir=sort_dir)
         except Exception as exc:
             self._handle_api_error(
                 exc,
                 default_message="Не удалось загрузить список книг. Проверьте подключение и повторите попытку.",
+                validation_message="Некорректные параметры списка книг.",
+                unprocessable_message="Некорректные параметры списка книг.",
             )
             return None
 
@@ -72,6 +84,17 @@ class BooksLogic(ApiLogic):
                 exc,
                 default_message="Не удалось скачать книгу. Повторите попытку.",
                 not_found_message="Файл книги недоступен.",
+            )
+            return None
+
+    async def get_book_cover(self, book_id) -> BookCoverPayload | None:
+        try:
+            return await self.api.get_book_cover(book_id)
+        except Exception as exc:
+            self._handle_api_error(
+                exc,
+                default_message="Не удалось загрузить обложку книги.",
+                not_found_message="Обложка книги недоступна.",
             )
             return None
 
