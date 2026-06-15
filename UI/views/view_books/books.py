@@ -1,9 +1,8 @@
-
-
 import flet as ft
 
 from UI.views.BaseView import BaseView
 from UI.views.view_books.cont_book import Book_cont
+from core.state import SortKey, SortDir
 from core.users.models import UserRole
 from core.epub.models import BookGenre
 from datetime import datetime
@@ -20,8 +19,8 @@ class BooksView(BaseView):
     def __init__(self, page: ft.Page):
         super().__init__(page)
 
-        self.sort_key = self.state.books_sort_key
-        self.sort_desc = self.state.books_sort_desc
+        self.sort_key: SortKey = self.state.books_sort_key
+        self.sort_desc: bool = self.state.books_sort_desc
 
         self._app_bar_settings()
         self.drawer.selected_index = 1
@@ -47,7 +46,7 @@ class BooksView(BaseView):
         self._setting_favorite_filter_button()
 
         self.sort_button = ft.SubmenuButton(content=ft.Icon(ft.Icons.SORT, color=ft.Colors.PRIMARY))
-        self.sort_items = {}
+        self.sort_items: dict[SortKey, ft.MenuItemButton] = {}
         self._settings_sort_button()
 
         self.search_row = ft.Row(controls=[self.favorite_filter_button, self.sort_button, self.drow, self.search])
@@ -71,12 +70,12 @@ class BooksView(BaseView):
 
         self._update_sort_button()
 
-    def _get_sort_menu_item(self, sort_key: str, text: str) -> ft.MenuItemButton:
+    def _get_sort_menu_item(self, sort_key: SortKey, text: str) -> ft.MenuItemButton:
         item = ft.MenuItemButton(content=ft.Text(text))
         item.on_click = lambda e, key=sort_key: self._toggle_sort(key)
         return item
 
-    def _toggle_sort(self, sort_key: str):
+    def _toggle_sort(self, sort_key: SortKey):
         if self.sort_key == sort_key:
             self.sort_desc = not self.sort_desc
         else:
@@ -94,7 +93,7 @@ class BooksView(BaseView):
 
 
     def _update_sort_button(self):
-        names = {
+        names: dict[SortKey, str] = {
             "created_at": "Дата добавления",
             "progress": "Прогресс чтения",
             "title": "Название",
@@ -265,8 +264,34 @@ class BooksView(BaseView):
         if self.sort_key == "progress":
             self._sort_cards()
 
+    async def _load_all_books(self):
+        limit = 100
+        offset = 0
+        has_more = True
+        books = []
+
+        while has_more:
+            page_books = await self.books_logic.get_books(
+                offset=offset,
+                limit=limit,
+                sort_by=self.sort_key,
+                sort_dir="desc" if self.sort_desc else "asc",
+            )
+
+            if page_books is None:
+                return None
+
+            books.extend(page_books)
+
+            loaded_count = len(page_books)
+            has_more = loaded_count == limit
+            offset += loaded_count
+
+        return books
+
+
     async def _load_books_async(self):
-        books = await self.books_logic.get_books()
+        books = await self._load_all_books()
         if books is None:
             self.loader.visible = False
             self.page.update()

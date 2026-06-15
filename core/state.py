@@ -1,7 +1,7 @@
 import logging
 import uuid
 
-from typing import Optional, List, Callable, Literal, Dict
+from typing import Optional, List, Callable, Literal, Dict, TypeAlias
 
 from core.MessageLevel import MessageLevel
 from core.Http_Client.schemas.books import BookRead
@@ -12,6 +12,8 @@ Topic = Literal["user", "book", "message", "route"]
 logger = logging.getLogger("app")
 
 
+SortKey: TypeAlias = Literal["created_at", "progress", "title"]
+SortDir: TypeAlias = Literal["asc", "desc"]
 class AppState:
     """
     Глобальное состояние приложения.
@@ -28,7 +30,7 @@ class AppState:
 
         self.current_route: str = "/login"
 
-        self.books_sort_key: str = "created_at"
+        self.books_sort_key: SortKey = "created_at"
         self.books_sort_desc: bool = True
 
         self._subscribers: Dict[Topic, List[Callable[[], None]]] = {
