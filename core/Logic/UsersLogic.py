@@ -1,4 +1,4 @@
-from core.ApiLogic import ApiLogic
+from core.Logic.ApiLogic import ApiLogic
 from core.Http_Client.schemas.users import UserCreate, UserPatch
 
 

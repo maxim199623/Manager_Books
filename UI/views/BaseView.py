@@ -4,11 +4,11 @@ import flet as ft
 from abc import ABC, abstractmethod
 
 from core.Auth import AuthLogic
-from core.BooksLogic import BooksLogic
-from core.ChaptersLogic import ChaptersLogic
+from core.Logic.BooksLogic import BooksLogic
+from core.Logic.ChaptersLogic import ChaptersLogic
 from core.Http_Client.client import ApiClient
 from core.state import AppState, MessageLevel
-from core.UsersLogic import UsersLogic
+from core.Logic.UsersLogic import UsersLogic
 from core.users.models import UserRole
 
 

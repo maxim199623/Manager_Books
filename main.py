@@ -5,11 +5,11 @@ from pathlib import Path
 from core.Http_Client.websocket_client import WebSocketClient
 from UI.Router import Router
 from core.Auth import AuthLogic
-from core.BooksLogic import BooksLogic
-from core.ChaptersLogic import ChaptersLogic
+from core.Logic.BooksLogic import BooksLogic
+from core.Logic.ChaptersLogic import ChaptersLogic
 from core.Http_Client.client import ApiClient
 from core.logging_setup import setup_logging
-from core.UsersLogic import UsersLogic
+from core.Logic.UsersLogic import UsersLogic
 import flet as ft
 
 from core.state import AppState

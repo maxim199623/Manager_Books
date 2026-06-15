@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 
 import flet as ft
 
-from core.BooksLogic import BooksLogic
-from core.ChaptersLogic import ChaptersLogic
+from core.Logic.BooksLogic import BooksLogic
+from core.Logic.ChaptersLogic import ChaptersLogic
 from UI.get_element.button import get_button
 from core.state import AppState
 from core.MessageLevel import MessageLevel

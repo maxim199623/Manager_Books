@@ -2,7 +2,7 @@ import flet as ft
 from pydantic import ValidationError, BaseModel, SecretStr, field_validator, EmailStr
 
 from core.Http_Client.schemas.users import UserRead, UserRole, UserCreate, UserPatch
-from core.UsersLogic import UsersLogic
+from core.Logic.UsersLogic import UsersLogic
 from UI.get_element.button import get_button
 from UI.get_element.text_field import get_text_field
 from core.state import AppState
