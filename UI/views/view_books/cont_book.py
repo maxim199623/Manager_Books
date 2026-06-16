@@ -9,6 +9,7 @@ from UI.get_element.button import get_button
 from core.state import AppState
 from core.MessageLevel import MessageLevel
 from core.users.models import UserRole
+from epub.models import Book
 
 
 def book_has_downloadable_file(book) -> bool:
@@ -43,11 +44,14 @@ class Book_cont:
         self.full_view = ft.Container(visible=True, expand=True)
         self.min_view = ft.Container(visible=False, expand=True)
 
+        self.progressbars = []
+        self._progress_task_started = False
+
         self.cont.content = ft.Stack([self.full_view, self.min_view], expand=True)
         self.file_picker = ft.FilePicker()
         self.book = None
         self.is_build = False
-        self.is_chapers= False
+        self.is_chapters= False
         self.favorite_button = ft.IconButton()
         self.favorite_button_min=ft.IconButton()
         self.on_favorite_change = None
@@ -169,6 +173,18 @@ class Book_cont:
         cont_button = self._base_container(height = 200, width = 200, padding = 20, content=button_coll)
         return cont_button
 
+    def _create_progressbar(self):
+        progressbar = ft.ProgressBar()
+        self.progressbars.append(progressbar)
+        return progressbar
+
+    def _start_progress_loading(self, index):
+        if self._progress_task_started:
+            return
+
+        self._progress_task_started = True
+        self.page.run_task(self.get_progressbar, index=index)
+
     def _get_elements(self, cover, title, description, index):
         if cover is None:
             cover = open("cover.png", "rb").read()
@@ -184,8 +200,8 @@ class Book_cont:
         cont_description = self._get_cont_description(description)
         cont_button = self._get_cont_button(index)
 
-        progressbar = ft.ProgressBar()
-        self.page.run_task(self.get_progressbar, index=index, progressbar=progressbar)
+        progressbar = self._create_progressbar()
+        self._start_progress_loading(index)
 
         data_column.controls = [cont_title,cont_description]
         all_row.controls = [image,data_column,cont_button]
@@ -193,31 +209,34 @@ class Book_cont:
 
         return all_colum
 
-    async def get_progressbar(self, index, progressbar):
+    def _update_progressbars(self, visible: bool, value: float | None = None):
+        for progressbar in self.progressbars:
+            progressbar.visible = visible
+            progressbar.value = value
+
+            if self.is_build and progressbar.page is not None:
+                progressbar.update()
+
+    async def get_progressbar(self, index):
         full = await self.chapters_logic.get_chapters_num(index)
         read = await self.chapters_logic.get_count_read_chapters_in_book(index)
+
         if full is None or read is None:
-            progressbar.visible = False
-            self.is_chapers = False
-            self.read_progress = 0.0
-            if self.is_build:
-                progressbar.update()
+            self.is_chapters = False
+            self._update_progressbars(visible=False, value=self.read_progress)
             return
 
         if full.chapters_count == 0:
-            progressbar.visible = False
-            self.is_chapers = False
+            self.is_chapters = False
             self.read_progress = 0.0
+            self._update_progressbars(visible=False, value=self.read_progress)
         else:
             self.read_progress = read.read_chapters / full.chapters_count
-            progressbar.value = self.read_progress
-            self.is_chapers = True
+            self.is_chapters = True
+            self._update_progressbars(visible=True, value=self.read_progress)
 
         if self.on_progress_change is not None:
             self.on_progress_change()
-
-        if self.is_build:
-            progressbar.update()
 
 
     def _get_min_elements(self, cover, title,description, index):
@@ -233,8 +252,8 @@ class Book_cont:
             ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.PRIMARY, overflow=ft.TextOverflow.ELLIPSIS)
         ])
 
-        progressbar = ft.ProgressBar()
-        self.page.run_task(self.get_progressbar, index=index, progressbar=progressbar)
+        progressbar = self._create_progressbar()
+        self._start_progress_loading(index)
 
         button = ft.Row(expand=True, alignment=ft.MainAxisAlignment.SPACE_AROUND,)
         if book_has_downloadable_file(self.book):
@@ -326,7 +345,7 @@ class Book_cont:
     def click_book(self,e):
         """Нажатие на контейнер"""
         ic(e.control.data["index"])  # type: ignore
-        if self.is_chapers:
+        if self.is_chapters:
             self.state.select_book(book_id=e.control.data["index"], book=e.control.data["book"])
         else:
             self.state.notify(message=f"Для этой книги нет загруженных глав.", level=MessageLevel.INFO)
