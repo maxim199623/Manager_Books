@@ -22,7 +22,7 @@ class BooksView(BaseView):
     BOOKS_RENDER_BATCH_SIZE = 5
     GRID_SPACING = 10
     GRID_MIN_TILE_WIDTH = 220
-    GRID_TILE_HEIGHT = 380
+    GRID_TILE_HEIGHT = 500
     GRID_MAX_COLUMNS = 4
 
     def __init__(self, page: ft.Page):

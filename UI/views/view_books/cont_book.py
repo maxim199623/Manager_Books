@@ -31,6 +31,10 @@ def book_download_name(book) -> str:
 
 
 class Book_cont:
+    COVER_WIDTH = 200
+    COVER_HEIGHT = 300
+    PROGRESS_SLOT_HEIGHT = 8
+    PROGRESS_BAR_HEIGHT = 4
     def __init__(self, page):
         self.page = page
         self.cont = ft.Container(expand=False)
@@ -176,9 +180,16 @@ class Book_cont:
         return cont_button
 
     def _create_progressbar(self):
-        progressbar = ft.ProgressBar()
+        progressbar = ft.ProgressBar(
+        bar_height=self.PROGRESS_BAR_HEIGHT,
+        value=0,
+        opacity=0.0,
+    )
         self.progressbars.append(progressbar)
-        return progressbar
+        return ft.Container(
+        height=self.PROGRESS_SLOT_HEIGHT,
+        content=progressbar,
+    )
 
     def _start_progress_loading(self, index):
         if self._progress_task_started:
@@ -209,10 +220,18 @@ class Book_cont:
         all_row = ft.Row(expand=True)
         data_column = ft.Column(alignment = ft.MainAxisAlignment.CENTER, expand=True)
 
-        self.full_cover_image = ft.Image(src=self._cover_src(cover), height=200, fit=ft.BoxFit.CONTAIN)
+        self.full_cover_image = ft.Image(src=self._cover_src(cover),
+                                         width=self.COVER_WIDTH,
+                                         height=self.COVER_HEIGHT,
+                                         fit=ft.BoxFit.CONTAIN, gapless_playback=True)
+
         self._setting_favorite_button(self.favorite_button)
         self._update_favorite_buttons()
-        image = ft.Container(height=200, content=ft.Stack(controls=[self.full_cover_image, self.favorite_button]))
+        image = ft.Container(width=self.COVER_WIDTH, height=self.COVER_HEIGHT,
+                             alignment=ft.Alignment.CENTER,
+                             content=ft.Stack(width=self.COVER_WIDTH,height=self.COVER_HEIGHT,
+                                              controls=[self.full_cover_image,
+                                                        ft.Container(content=self.favorite_button, top=0, right=0)]))
         cont_title = self._get_cont_title(title)
         cont_description = self._get_cont_description(description)
         cont_button = self._get_cont_button(index)
@@ -229,6 +248,7 @@ class Book_cont:
     def _update_progressbars(self, visible: bool, value: float | None = None):
         for progressbar in self.progressbars:
             progressbar.visible = visible
+            progressbar.opacity = 1.0 if visible else 0.0
             progressbar.value = value
 
             if self.is_build and progressbar.page is not None:
@@ -259,10 +279,18 @@ class Book_cont:
     def _get_min_elements(self, cover, title,description, index):
         all_row = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,  tight=True)
 
-        self.min_cover_image = ft.Image(src=self._cover_src(cover), height=200, fit=ft.BoxFit.CONTAIN)
+        self.min_cover_image = ft.Image(src=self._cover_src(cover),
+                                        width=self.COVER_WIDTH,
+                                        height=self.COVER_HEIGHT,
+                                        fit=ft.BoxFit.CONTAIN, gapless_playback=True)
+
         self._setting_favorite_button(self.favorite_button_min)
         self._update_favorite_buttons()
-        image = ft.Container(height=200, content=ft.Stack(controls=[self.min_cover_image, self.favorite_button_min]))
+
+        image = ft.Container(width=self.COVER_WIDTH, height=self.COVER_HEIGHT,
+                             alignment=ft.Alignment.CENTER,
+                             content=ft.Stack(width=self.COVER_WIDTH,height=self.COVER_HEIGHT,
+                                              controls=[self.min_cover_image, ft.Container(content=self.favorite_button_min, top=0, right=0)]))
         des = ft.Container(alignment=ft.Alignment.BOTTOM_LEFT,padding=12)
         des.content = ft.Column(tight=True, spacing=4, controls=[
             ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.PRIMARY, overflow=ft.TextOverflow.ELLIPSIS)
