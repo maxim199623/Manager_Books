@@ -1,3 +1,5 @@
+import asyncio
+
 import flet as ft
 
 from UI.views.BaseView import BaseView
@@ -15,6 +17,8 @@ class BooksView(BaseView):
     allowed_roles = [UserRole.USER, UserRole.ADMIN]
     vert_alignment: ft.MainAxisAlignment = ft.MainAxisAlignment.START
     horizontal_alignment: ft.CrossAxisAlignment = ft.CrossAxisAlignment.CENTER
+
+    BOOKS_RENDER_BATCH_SIZE = 5
 
     def __init__(self, page: ft.Page):
         super().__init__(page)
@@ -289,6 +293,26 @@ class BooksView(BaseView):
 
         return books
 
+    def _build_book_card(self, book):
+        card = Book_cont(page=self.page)
+        card.on_favorite_change = self._on_favorite_change
+        card.on_delete_change = lambda deleted_card=card: self._on_delete_change(deleted_card)
+        card.on_progress_change = self._on_progress_change
+
+        cont_book = card.get_cont(
+            title=book.title,
+            description=book.description,
+            index=book.id,
+            cover=book.cover,
+            data=book,
+        )
+        cont_book.col = {
+            ft.ResponsiveRowBreakpoint.XS: 6,
+            ft.ResponsiveRowBreakpoint.SM: 4,
+            ft.ResponsiveRowBreakpoint.MD: 3,
+            ft.ResponsiveRowBreakpoint.LG: 12,
+        }
+        return card, cont_book
 
     async def _load_books_async(self):
         books = await self._load_all_books()
@@ -296,31 +320,23 @@ class BooksView(BaseView):
             self.loader.visible = False
             self.page.update()
             return
+
         self.cards.clear()
-        for index, book in enumerate(books):
-            self.loader.value = (index + 1) / len(books)
-            card = Book_cont(page=self.page)
-            card.on_favorite_change = self._on_favorite_change
-            card.on_delete_change = lambda deleted_card=card: self._on_delete_change(deleted_card)
-            card.on_progress_change = self._on_progress_change
 
-            cont_book = card.get_cont(
-                title=book.title, description=book.description, index=book.id, cover=book.cover, data = book
-            )
-
-            cont_book.col = {ft.ResponsiveRowBreakpoint.XS: 6,
-                             ft.ResponsiveRowBreakpoint.SM: 4,
-                             ft.ResponsiveRowBreakpoint.MD: 3,
-                             ft.ResponsiveRowBreakpoint.LG: 12
-                             }
-
-            self.cards.append(card)
-            self._column.controls.append(cont_book)
-            self._column.update()
-            self.loader.update()
+        total = len(books)
+        for start in range(0, total, self.BOOKS_RENDER_BATCH_SIZE):
+            batch = books[start:start + self.BOOKS_RENDER_BATCH_SIZE]
+            for book in batch:
+                card, cont_book = self._build_book_card(book)
+                self.cards.append(card)
+                self._column.controls.append(cont_book)
+            loaded = min(start + len(batch), total)
+            self.loader.value = loaded / total if total else 1
+            self.page.update(self._column, self.loader)
+            await asyncio.sleep(0)
 
         self.loader.visible = False
-        self.page.update()
+        self.page.update(self._column, self.loader)
 
 
     def _page_resize(self):
