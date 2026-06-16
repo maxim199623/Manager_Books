@@ -48,12 +48,14 @@ class BooksLogic(ApiLogic):
 
     async def get_books(self, author=None, series=None,
                               offset: int = 0, limit: int = 100,
+                              include_covers: bool = True,
                               sort_by: SortBy = "created_at",
                               sort_dir: SortDir = "desc",
                         ) -> list[BookRead] | None:
         try:
             return await self.api.get_books(author=author, series=series, offset=offset,
-                                            limit=limit, sort_by=sort_by, sort_dir=sort_dir)
+                                            include_covers=include_covers, limit=limit,
+                                            sort_by=sort_by, sort_dir=sort_dir)
         except Exception as exc:
             self._handle_api_error(
                 exc,

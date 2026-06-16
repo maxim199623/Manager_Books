@@ -1,4 +1,5 @@
 import asyncio
+import base64
 
 import flet as ft
 
@@ -19,9 +20,15 @@ class BooksView(BaseView):
     horizontal_alignment: ft.CrossAxisAlignment = ft.CrossAxisAlignment.CENTER
 
     BOOKS_RENDER_BATCH_SIZE = 5
+    GRID_SPACING = 10
+    GRID_MIN_TILE_WIDTH = 220
+    GRID_TILE_HEIGHT = 380
+    GRID_MAX_COLUMNS = 4
 
     def __init__(self, page: ft.Page):
         super().__init__(page)
+
+        self._cover_load_semaphore = asyncio.Semaphore(5)
 
         self.sort_key: SortKey = self.state.books_sort_key
         self.sort_desc: bool = self.state.books_sort_desc
@@ -57,11 +64,84 @@ class BooksView(BaseView):
         self._settings_drow()
         self._settings_genre_button()
 
-        self._column = ft.ResponsiveRow(spacing=10,
-                        run_spacing=10,
-                        controls=[self.search_row, self.loader])
+        self.books_list = ft.ListView(
+            expand=True,
+            spacing=10,
+            build_controls_on_demand=True,
+            cache_extent=800,
+            visible=True,
+        )
+
+        self.books_grid = ft.GridView(
+            expand=True,
+            spacing=10,
+            run_spacing=10,
+            cache_extent=800,
+            controls=[],
+        )
+
+        self._column = ft.Column(expand=True, spacing=10,
+                        controls=[self.search_row, self.loader,
+                                  self.books_list, self.books_grid])
+
         self.cards = []
+        self._sync_books_layout(update=False)
+
         self._get_books()
+
+    def _is_desktop_books_layout(self) -> bool:
+        return (self.page.width or 0) > 992
+
+    def _get_grid_available_width(self) -> float:
+        return max((self.page.width or 0) - 40, 1)
+
+    def _get_grid_runs_count(self) -> int:
+        width = self.page.width or 0
+
+        if width >= 900:
+            return 4
+
+        if width >= 650:
+            return 3
+
+        if width >= 420:
+            return 2
+
+        return 1
+
+    def _get_grid_child_aspect_ratio(self, runs_count: int) -> float:
+        width = self._get_grid_available_width()
+        tile_width = (width - self.GRID_SPACING * (runs_count - 1)) / runs_count
+
+        return tile_width / self.GRID_TILE_HEIGHT
+
+
+    def _active_books_container(self):
+        return self.books_list if self._is_desktop_books_layout() else self.books_grid
+
+    def _sync_books_layout(self, update: bool = True):
+        is_desktop = self._is_desktop_books_layout()
+
+        self.books_list.visible = is_desktop
+        self.books_grid.visible = not is_desktop
+
+        if is_desktop:
+            self.books_list.controls = [card.cont for card in self.cards]
+            self.books_grid.controls.clear()
+        else:
+            runs_count = self._get_grid_runs_count()
+            self.books_grid.runs_count = runs_count
+            self.books_grid.child_aspect_ratio = self._get_grid_child_aspect_ratio(runs_count)
+            self.books_grid.controls = [card.cont for card in self.cards]
+            self.books_list.controls.clear()
+
+        for card in self.cards:
+            card.apply_mode()
+
+        if update:
+            self.page.update(self.books_list, self.books_grid)
+
+
 
     def _settings_sort_button(self):
         self.sort_button.controls.clear()
@@ -131,10 +211,10 @@ class BooksView(BaseView):
 
     def _sort_cards(self, update:bool = True):
         self.cards.sort(key=self._get_sort_value, reverse=self.sort_desc)
-        self._column.controls = [self.search_row, self.loader] + [card.cont for card in self.cards]
+        self._sync_books_layout(update=update)
 
-        if self._column.page is not None and update:
-            self._column.update()
+        if self.books_grid.page is not None and update:
+            self.books_grid.update()
 
     def _setting_favorite_filter_button(self):
         self.favorite_filter_button.icon = ft.Icons.STAR_BORDER
@@ -239,7 +319,7 @@ class BooksView(BaseView):
                         visible = search_value in (book.series or "").strip().casefold()
                     case "description":
                         visible = search_value in (book.description or "").strip().casefold()
-            card.change_visible(visible)
+            card.change_visible(visible, update=False)
         self._sort_cards()
 
 
@@ -259,14 +339,26 @@ class BooksView(BaseView):
 
     def _on_delete_change(self, deleted_card: Book_cont):
         self.cards = [card for card in self.cards if card is not deleted_card]
-        self._column.controls = [self.search_row, self.loader] + [card.cont for card in self.cards]
+        self._sync_books_layout(update=True)
 
-        if self._column.page is not None:
-            self._column.update()
+        if self.books_grid.page is not None:
+            self.books_grid.update()
 
     def _on_progress_change(self):
         if self.sort_key == "progress":
             self._sort_cards()
+
+
+    async def _load_card_cover(self, card: Book_cont, book):
+        async with self._cover_load_semaphore:
+            cover = await self.books_logic.get_book_cover(book.id)
+
+        if cover is None:
+            return
+
+        book.cover = cover.content
+        card.cont.data["book"] = book
+        card.update_cover(cover.content)
 
     async def _load_all_books(self):
         limit = 100
@@ -278,7 +370,7 @@ class BooksView(BaseView):
             page_books = await self.books_logic.get_books(
                 offset=offset,
                 limit=limit,
-                sort_by=self.sort_key,
+                sort_by=self.sort_key,include_covers=False,
                 sort_dir="desc" if self.sort_desc else "asc",
             )
 
@@ -293,6 +385,7 @@ class BooksView(BaseView):
 
         return books
 
+
     def _build_book_card(self, book):
         card = Book_cont(page=self.page)
         card.on_favorite_change = self._on_favorite_change
@@ -306,12 +399,6 @@ class BooksView(BaseView):
             cover=book.cover,
             data=book,
         )
-        cont_book.col = {
-            ft.ResponsiveRowBreakpoint.XS: 6,
-            ft.ResponsiveRowBreakpoint.SM: 4,
-            ft.ResponsiveRowBreakpoint.MD: 3,
-            ft.ResponsiveRowBreakpoint.LG: 12,
-        }
         return card, cont_book
 
     async def _load_books_async(self):
@@ -322,6 +409,9 @@ class BooksView(BaseView):
             return
 
         self.cards.clear()
+        self.books_list.controls.clear()
+        self.books_grid.controls.clear()
+        self._sync_books_layout(update=False)
 
         total = len(books)
         for start in range(0, total, self.BOOKS_RENDER_BATCH_SIZE):
@@ -329,14 +419,16 @@ class BooksView(BaseView):
             for book in batch:
                 card, cont_book = self._build_book_card(book)
                 self.cards.append(card)
-                self._column.controls.append(cont_book)
+                self._active_books_container().controls.append(cont_book)
+                if getattr(book, "cover_size", 0) > 0 and book.cover is None:
+                    self.page.run_task(self._load_card_cover, card, book)
             loaded = min(start + len(batch), total)
             self.loader.value = loaded / total if total else 1
-            self.page.update(self._column, self.loader)
+            self.page.update(self._active_books_container(), self.loader)
             await asyncio.sleep(0)
 
         self.loader.visible = False
-        self.page.update(self._column, self.loader)
+        self.page.update(self._active_books_container(), self.loader)
 
 
     def _page_resize(self):
@@ -344,6 +436,13 @@ class BooksView(BaseView):
         self._container.height = ic(self.page.height * 1.00763 - 96.193)
         self._container.width = self.page.width
         self._container.update()
+
+        if self.page.width <= 600:
+            self.drow.width = 50
+        else:
+            self.drow.width = None
+
+        self._sync_books_layout(update=False)
         for card in self.cards:
             card.apply_mode()
         self.page.update()
@@ -355,7 +454,5 @@ class BooksView(BaseView):
         """
         ic()
         cont = self._container
-        cont.content = ft.Column(expand=True,
-                  scroll=ft.ScrollMode.AUTO,
-                  controls=[self._column])
+        cont.content = self._column
         return cont

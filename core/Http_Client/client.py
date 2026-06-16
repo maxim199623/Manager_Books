@@ -102,6 +102,7 @@ class ApiClient:
                         author: Optional[str] = None,
                         series: Optional[str] = None,
                         offset: int = 0, limit: int = 100,
+                        include_covers: bool = True,
                         sort_by: SortBy = "created_at",
                         sort_dir: SortDir = "desc") -> List[BookRead]:
         params = {
@@ -121,7 +122,8 @@ class ApiClient:
                                    params=params,
                                    expected_status=200)
         books = [BookRead(**b) for b in resp]
-        await self._prefetch_book_covers(books)
+        if include_covers:
+            await self._prefetch_book_covers(books)
         return books
 
 

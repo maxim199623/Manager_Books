@@ -9,7 +9,6 @@ from UI.get_element.button import get_button
 from core.state import AppState
 from core.MessageLevel import MessageLevel
 from core.users.models import UserRole
-from epub.models import Book
 
 
 def book_has_downloadable_file(book) -> bool:
@@ -43,6 +42,9 @@ class Book_cont:
 
         self.full_view = ft.Container(visible=True, expand=True)
         self.min_view = ft.Container(visible=False, expand=True)
+
+        self.full_cover_image = None
+        self.min_cover_image = None
 
         self.progressbars = []
         self._progress_task_started = False
@@ -185,17 +187,32 @@ class Book_cont:
         self._progress_task_started = True
         self.page.run_task(self.get_progressbar, index=index)
 
-    def _get_elements(self, cover, title, description, index):
+    @staticmethod
+    def _cover_src(cover):
         if cover is None:
-            cover = open("cover.png", "rb").read()
+            cover = open("assets/cover.png", "rb").read()
+        cover_base64 = base64.b64encode(cover).decode("utf-8")
+        return f"data:image/png;base64,{cover_base64}"
+
+
+    def update_cover(self, cover):
+        src = self._cover_src(cover)
+        for image in (self.full_cover_image, self.min_cover_image):
+            if image is None:
+                continue
+            image.src = src
+            if image.page is not None:
+                image.update()
+
+    def _get_elements(self, cover, title, description, index):
         all_colum = ft.Column()
         all_row = ft.Row(expand=True)
         data_column = ft.Column(alignment = ft.MainAxisAlignment.CENTER, expand=True)
 
-        image_cover = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.CONTAIN)
+        self.full_cover_image = ft.Image(src=self._cover_src(cover), height=200, fit=ft.BoxFit.CONTAIN)
         self._setting_favorite_button(self.favorite_button)
         self._update_favorite_buttons()
-        image = ft.Container(height=200, content=ft.Stack(controls=[image_cover, self.favorite_button]))
+        image = ft.Container(height=200, content=ft.Stack(controls=[self.full_cover_image, self.favorite_button]))
         cont_title = self._get_cont_title(title)
         cont_description = self._get_cont_description(description)
         cont_button = self._get_cont_button(index)
@@ -240,13 +257,12 @@ class Book_cont:
 
 
     def _get_min_elements(self, cover, title,description, index):
-        if cover is None:
-            cover = open("cover.png", "rb").read()
-        all_row = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,  tight=True,)
-        image_cover = ft.Image(src=base64.b64encode(cover).decode("utf-8"), height=200, fit=ft.BoxFit.CONTAIN)
+        all_row = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER,  tight=True)
+
+        self.min_cover_image = ft.Image(src=self._cover_src(cover), height=200, fit=ft.BoxFit.CONTAIN)
         self._setting_favorite_button(self.favorite_button_min)
         self._update_favorite_buttons()
-        image = ft.Container(height=200, content=ft.Stack(controls=[image_cover, self.favorite_button_min]))
+        image = ft.Container(height=200, content=ft.Stack(controls=[self.min_cover_image, self.favorite_button_min]))
         des = ft.Container(alignment=ft.Alignment.BOTTOM_LEFT,padding=12)
         des.content = ft.Column(tight=True, spacing=4, controls=[
             ft.Text(title,max_lines=2,weight=ft.FontWeight.BOLD,color=ft.Colors.PRIMARY, overflow=ft.TextOverflow.ELLIPSIS)
@@ -275,9 +291,10 @@ class Book_cont:
     def get_book(self):
         return self.book
 
-    def change_visible(self, visible:bool = True):
+    def change_visible(self, visible:bool = True, update:bool = True):
         self.cont.visible = visible
-        self.cont.update()
+        if update and self.cont.page is not None:
+            self.cont.update()
 
     def apply_mode(self):
         ic()
