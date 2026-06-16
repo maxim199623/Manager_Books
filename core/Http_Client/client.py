@@ -25,7 +25,7 @@ class ApiClient:
     SortBy = Literal["created_at", "progress", "title"]
     SortDir = Literal["asc", "desc"]
 
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, max_attempts: int = 2, retry_delay: float = 0.2):
         try:
             ssl_context = ssl.create_default_context(cafile="cert.pem")
         except FileNotFoundError:
@@ -34,6 +34,10 @@ class ApiClient:
         self._client = httpx.AsyncClient(base_url=base_url,verify=ssl_context, timeout=20.0)
         self.token: Optional[str] = None
         self.base_url = base_url.rstrip("/")
+        self.max_attempts = max_attempts
+        self.retry_delay = retry_delay
+        if self.max_attempts < 1:
+            raise ValueError("max_attempts должен быть больше 0")
 
     async def login(self, email: str, password: str) -> TokenResponse:
         resp = await self._request(method=HTTPMethod.POST,
@@ -318,15 +322,26 @@ class ApiClient:
         ic()
         ic(f"Запрос {method} на {url}")
         logger.debug("Запрос API", extra={"method": method.value, "url": url})
-        resp = await self._client.request(
-            method.value,
-            url,
-            json=json,
-            params=params,
-            data=data,
-            files=files,
-            headers=self._auth_headers(),
-        )
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                resp = await self._client.request(
+                    method.value,
+                    url,
+                    json=json,
+                    params=params,
+                    data=data,
+                    files=files,
+                    headers=self._auth_headers(),
+                )
+                break
+            except (httpx.TimeoutException, httpx.RequestError) as exc:
+                if attempt >= self.max_attempts:
+                    raise
+                logger.warning(
+                    "Ошибка соединения с API, повтор запроса",
+                    extra={"method": method.value, "url": url, "attempt": attempt},
+                )
+                await asyncio.sleep(self.retry_delay)
 
         if resp.status_code != expected_status:
             logger.warning(f"От {resp.url} вернулся {resp.status_code}")

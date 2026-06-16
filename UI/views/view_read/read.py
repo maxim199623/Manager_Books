@@ -5,7 +5,6 @@ import flet as ft
 
 from UI.get_element.button import get_button
 from UI.views.BaseView import BaseView
-from core.state import MessageLevel
 from core.users.models import UserRole
 
 from UI.get_element.text_field import get_text_field
@@ -162,19 +161,47 @@ class ReadView(BaseView):
 
     async def get_chap(self):
         self._pagelet_drawer.controls.clear()
-        capers_num = await self.chapters_logic.get_chapters_num(self.state.current_book_id)
+        capers_names = await self.chapters_logic.get_chapters(self.state.current_book_id)
         history = await self.get_history()
-        if capers_num is None or history is None:
+        if capers_names is None or history is None:
             return
 
-        for caper in range(capers_num.chapters_count):
-            read = caper in history
-            self._pagelet_drawer.controls += self._get_drawer_destination(label=f"Глава {caper}", read=read)
+        for caper in capers_names:
+            read = caper.chapter in history
+            label = f"{caper.chapter_name}"
+            self._pagelet_drawer.controls += self._get_drawer_destination(label=self._format_drawer_label(label), read=read)
         self._pagelet_drawer.selected_index = history[-1] if history != [] else 0
         self._pagelet_drawer.visible = True
         self._pagelet_drawer.update()
 
         await self._get_chapter(history[-1] if history != [] else 0)
+
+    @staticmethod
+    def _format_drawer_label(label: str, max_line_len: int = 28, max_lines: int = 2) -> str:
+        label = " ".join((label or "Без названия").split())
+        words = label.split()
+        lines = []
+        current = ""
+
+        for word in words:
+            if len(current) + len(word) + 1 <= max_line_len:
+                current = f"{current} {word}".strip()
+                continue
+
+            lines.append(current)
+            current = word
+
+            if len(lines) == max_lines:
+                break
+
+        if current and len(lines) < max_lines:
+            lines.append(current)
+
+        result = "\n".join(lines)
+        if len(" ".join(words)) > len(result.replace("\n", " ")):
+            result = result[: max(0, len(result) - 3)] + "..."
+
+        return result
 
     async def get_history(self):
         history = await self.chapters_logic.get_read_chapters_in_book(self.state.current_book_id)
