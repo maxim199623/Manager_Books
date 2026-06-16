@@ -32,7 +32,7 @@ def book_download_name(book) -> str:
 
 class Book_cont:
     COVER_WIDTH = 200
-    COVER_HEIGHT = 300
+    COVER_HEIGHT = 250
     PROGRESS_SLOT_HEIGHT = 8
     PROGRESS_BAR_HEIGHT = 4
     def __init__(self, page):
@@ -132,6 +132,8 @@ class Book_cont:
         self.cont.on_click = self.click_book
         self.cont.scale = 1.0
         self.cont.animate_scale = ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT)
+        self.cont.animate = ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT)
+        self.cont.shadow = self._get_card_shadow(hovered=False)
 
         self.cont.shadow = ft.BoxShadow(
             spread_radius=0,
@@ -331,9 +333,26 @@ class Book_cont:
         self.full_view.visible = not is_small
         self.min_view.visible = is_small
 
+    @staticmethod
+    def _get_card_shadow(hovered: bool = False):
+        return ft.BoxShadow(
+            spread_radius=1 if hovered else 0,
+            blur_radius=18 if hovered else 6,
+            color=ft.Colors.PRIMARY if hovered else ft.Colors.BLACK12,
+            offset=ft.Offset(0, 2 if hovered else 0),
+        )
 
     def on_hover(self, e):
-        pass
+        hovered = e.data
+        if isinstance(hovered, str):
+            hovered = hovered.lower() == "true"
+        if e.control.data.get("hovered") == hovered:
+            return
+        e.control.data["hovered"] = hovered
+        e.control.scale = 1.004 if hovered else 1.0
+        e.control.shadow = self._get_card_shadow(hovered=hovered)
+        e.control.update()
+
 
     def del_button(self, e):
         """Кнопка удаления книги"""
